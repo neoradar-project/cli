@@ -4,7 +4,6 @@ import versionInfo from './version.json';
 
 import { initPackage } from './commands/init-package';
 
-
 console.log(
   figlet.textSync('NeoRadar CLI'),
 );
@@ -14,11 +13,13 @@ program
   .version(versionInfo.version)
   .description("CLI Tool for neoradar for packaging and releasing sector files");
   
-program.command("init").description("Initializes a new package environment with the given name and optional output directory")
-  .argument("<string>", "Name of the package to initialize")
-  .option("-o, --out [string]", "Optional output directory for the package, defaults to current directory")
-  .action((name, options) => {
-    initPackage(name, options.out || process.cwd());
+program.command("init").description("Initializes a new package environment in the given folder and output directory")
+  .argument("<string>", "Folder in which to initialize the package")
+  .option("-o, --out <string>", "Output directory for the package")
+  .option("-n, --name [string]", "Name of the package, defaults to the directory name")
+  .option("-s, --namespace [string]", "The namespace to use for the package, defaults to the name. Choose a string that is unique to your package and does not change with package versions.")
+  .action((folder, options) => {
+    initPackage(folder, options.out, options.namespace, options.name);
   });
 /*
   .option("-u, --update <package_path>", "Checks for updates in the given package path against base package")
@@ -33,5 +34,3 @@ program.parse(process.argv);
 if (!process.argv.slice(2).length) {
   program.outputHelp();
 }
-
-const options = program.opts(); 

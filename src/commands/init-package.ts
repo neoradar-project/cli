@@ -10,6 +10,8 @@ const tmpZipPath = require("path").join(
 );
 import yauzl from "yauzl";
 import path from "path";
+import { getCurrentAiracCycle } from "../utils";
+import { defaultPackageConfig } from "../definitions/packageConfig";
 
 const downloadBasePackage = async (
   packageDirectory: string,
@@ -71,20 +73,44 @@ const downloadBasePackage = async (
   });
 };
 
+const createOtherDirectories = (packageDirectory: string) => {
+  const directories = [
+    "sector_files",
+    "dist",
+    "euroscope_data",
+    "icao_data",
+    "ASRs",
+  ];
+
+  directories.forEach((dir) => {
+    const dirPath = path.join(packageDirectory, dir);
+    if (!fs.existsSync(dirPath)) {
+      fs.mkdirSync(dirPath, { recursive: true });
+      console.log(`Created directory: ${dirPath}`);
+    }
+  });
+};
+
 export const initPackage = async (
-  packageName: string,
-  outputDirectory: string
+  folderName: string,
+  outputDirectory: string,
+  namespace: string | undefined,
+  name: string | undefined
 ) => {
-  const currentDirectory = process.cwd();
-  const packageDirectory = outputDirectory || currentDirectory;
+  const packageDirectory = outputDirectory;
 
   console.log(
-    `Initializing package "${packageName}" in directory: ${packageDirectory}`
+    `Initializing package "${folderName}" in directory: ${packageDirectory}`
   );
 
   // Create the package directory if it doesn't exist
   if (!fs.existsSync(packageDirectory)) {
     fs.mkdirSync(packageDirectory, { recursive: true });
+  } else {
+    console.log(
+      `Directory already exists: ${packageDirectory}. Please select another one.`
+    );
+    return;
   }
 
   console.log(
@@ -98,10 +124,10 @@ export const initPackage = async (
     )
     .json()) as any;
 
-  const version = response.tag_name;
+  const basePackageVersion = response.tag_name;
   const downloadUrl = response.zipball_url as string;
 
-  console.log(`Found latest version: ${version}`);
+  console.log(`Found latest version: ${basePackageVersion}`);
 
   console.log(`Downloading base package...`);
 
@@ -109,18 +135,37 @@ export const initPackage = async (
 
   console.log(`Package extracted to: ${packageDirectory}`);
 
-  console.log("Updating package.json...");
-  const packageJsonPath = path.join(packageDirectory, "package", "package.json");
+  console.log("Updating manifest.json...");
+  const packageJsonPath = path.join(
+    packageDirectory,
+    "package",
+    "manifest.json"
+  );
 
-  // Read the existing package.json
+  // Read the existing manifest.json
   const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
 
-  // Update the package.json with the new information
-  packageJson.name = packageName;
-  packageJson.basePackageVersion = version;
+  // Update the manifest.json with the new information
+  packageJson.name = (name || folderName) + " " + getCurrentAiracCycle();
+  packageJson.description = `Package for ${name || folderName} sector files, AIRAC cycle ${getCurrentAiracCycle()}`;
+  packageJson.id = (name || folderName).toUpperCase().replace(/\s+/g, "_") + "_" + getCurrentAiracCycle();
+  packageJson.basePackageVersion = basePackageVersion;
+  packageJson.namespace = namespace || folderName.toLowerCase().replace(/\s+/g, "_");
 
-  // Write the updated package.json back to the file
+  // Write the updated manifest.json back to the file
   fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2));
 
-  console.log(`package.json updated: ${packageJsonPath}`);
+  console.log(`manifest.json updated: ${packageJsonPath}`);
+
+  console.log("Creating additional directories...");
+  createOtherDirectories(packageDirectory);
+
+
+  console.log("Create config.json file...");
+  const configFilePath = path.join(packageDirectory, "config.json");
+
+  fs.writeFileSync(configFilePath, JSON.stringify(defaultPackageConfig, null, 2));
+  console.log(`config.json created: ${configFilePath}`);
+
+  console.log("Package initialization complete.");
 };
