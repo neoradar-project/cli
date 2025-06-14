@@ -81,9 +81,9 @@ export const indexer = async (packagePath: string, outputFile: string) => {
     }
   });
 
-  console.log("Indexing complete. Summary:");
+  spinner.info(`Indexed ${indexItems.length} items across ${Object.keys(groupedIndex).length} types.`);
   Object.keys(groupedIndex).forEach((type) => {
-    console.log(`Type: ${type} - Indexed ${groupedIndex[type].length} items`);
+    spinner.info(`Type: ${type} - Indexed ${groupedIndex[type].length} items`);
   });
 
   spinner.text = `Writing index to: ${outputFile}`;
@@ -135,6 +135,42 @@ export const indexer = async (packagePath: string, outputFile: string) => {
       return;
     }
   }
-  spinner.text = `Index written to: ${outputFile}`;
+  spinner.info(`Index written to: ${outputFile}`);
+
+  // Checking if manifest needs to be updated
+  const manifestPath = `${packagePath}/package/manifest.json`;
+  if (fs.existsSync(manifestPath)) {
+    spinner.text = `Updating manifest at: ${manifestPath}`;
+    const strippedGeoJSONFileNames = geojsonFiles.map(
+      (file) =>
+        file
+          .split("/")
+          .pop()
+          ?.replace(/\.geojson$/, "") || ""
+    );
+
+    const manifestData = JSON.parse(fs.readFileSync(manifestPath, "utf-8"));
+    const mapLayers = manifestData.mapLayers || [];
+    const existingLayerNames = mapLayers.map((layer: any) => layer.source);
+
+    let updateCount = 0;
+    strippedGeoJSONFileNames.forEach((fileName) => {
+      if (!existingLayerNames.includes(fileName)) {
+        mapLayers.push({
+          source: fileName,
+          type: "geojson",
+          name: fileName,
+        });
+        updateCount++;
+      }
+    });
+
+    if (updateCount > 0) {
+      manifestData.mapLayers = mapLayers;
+      fs.writeFileSync(manifestPath, JSON.stringify(manifestData, null, 2));
+      spinner.info(`Manifest updated with ${updateCount} new layers.`);
+    }
+  }
+
   spinner.succeed("Indexing completed successfully.");
 };
