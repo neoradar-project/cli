@@ -31,6 +31,9 @@
     "commander": "^14.0.0",
     "figlet": "^1.8.1",
     "ky": "^1.8.1",
+    "ora": "^8.2.0",
+    "sector-file-tools": "github:neoradar-project/sector-file-tools",
+    "turf": "^3.0.14",
     "yauzl": "^3.2.0"
   }
 }
