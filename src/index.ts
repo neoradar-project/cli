@@ -4,6 +4,7 @@ import versionInfo from "./version.json";
 
 import { initPackage } from "./commands/init-package";
 import { convert } from "./commands/convert";
+import { indexer } from "./commands/indexer";
 
 console.log(figlet.textSync("NeoRadar CLI"));
 
@@ -52,6 +53,16 @@ program
   .action((options) => {
     const packagePath = options.path || process.cwd();
     convert(packagePath);
+  });
+
+  program.command("index")
+  .description("Indexes GeoJSON features names and IDs in the specified directory and writes them to nse.json if present")
+  .option("-p, --path [string]", "Directory of the package environment, defaults to current directory")
+  .option("-o, --output [string]", "Output file for the index, defaults to nse.json in the package/datasets directory")
+  .action((options) => {
+    const packagePath = options.path || process.cwd();
+    const outputFile = options.output || `${packagePath}/package/datasets/nse.json`;
+    indexer(packagePath, outputFile);
   });
 
 /*

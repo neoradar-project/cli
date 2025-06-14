@@ -34,6 +34,7 @@ const handleAirwaysUUID = (sctData: SCT, features: GeoJSON.Feature[]) => {
     multiline.properties = {
       type: "lowAirway",
       uuid: uuidManager.getSharedUUID("lowAirway", airway.id),
+      name: airway.id,
     };
     features.push(multiline);
   });
@@ -47,6 +48,7 @@ const handleAirwaysUUID = (sctData: SCT, features: GeoJSON.Feature[]) => {
     multiline.properties = {
       type: "highAirway",
       uuid: uuidManager.getSharedUUID("highAirway", airway.id),
+      name: airway.id,
     };
     features.push(multiline);
   });
