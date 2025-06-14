@@ -10,7 +10,7 @@ import {
 
 const IGNORED_TYPES = ["low-airway", "high-airway"];
 
-async function generateGeoJsonFilesForType(path: string, type: string, allFeatures: any[]): Promise<void> {
+async function generateGeoJsonFilesForType(path: string, type: string, allFeatures: any[]) {
     const features = allFeatures;
     const geojson = {
       type: "FeatureCollection",
@@ -19,8 +19,7 @@ async function generateGeoJsonFilesForType(path: string, type: string, allFeatur
     const data = JSON.stringify(geojson);
     const formattedType = type.replace(/-([a-z])/g, (match, letter) => letter.toUpperCase());
     const filePath = `${path}/${formattedType}.geojson`;
-    await fs.promises.writeFile(filePath, data, "utf8");
-    return;
+    fs.writeFileSync(filePath, data, "utf8");
   }
 
 
@@ -114,13 +113,13 @@ export const cliParseSCT = async (
       }
     });
 
-    spinner.text = `Found ${allTypes.size} feature types: ${Array.from(
-      allTypes
-    ).join(", ")}`;
-
     const datasetsToWrite: string[] = Array.from(allTypes.keys()).filter(
       (type) => !IGNORED_TYPES.includes(type)
     );
+
+    spinner.info(`Found ${datasetsToWrite.length} datasets to write: ${Array.from(
+      allTypes
+    ).join(", ")}`);
 
     uuidManager.registerTypes(datasetsToWrite);
 

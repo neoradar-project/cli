@@ -1,6 +1,7 @@
 import ora from "ora";
 import fs from "fs";
 import { fileFilesWithExtension, getFeatureName } from "../utils";
+import { updateNSE } from "../helper/nse";
 
 interface IndexItem {
   type: string;
@@ -81,7 +82,11 @@ export const indexer = async (packagePath: string, outputFile: string) => {
     }
   });
 
-  spinner.info(`Indexed ${indexItems.length} items across ${Object.keys(groupedIndex).length} types.`);
+  spinner.info(
+    `Indexed ${indexItems.length} items across ${
+      Object.keys(groupedIndex).length
+    } types.`
+  );
   Object.keys(groupedIndex).forEach((type) => {
     spinner.info(`Type: ${type} - Indexed ${groupedIndex[type].length} items`);
   });
@@ -92,15 +97,14 @@ export const indexer = async (packagePath: string, outputFile: string) => {
   if (fs.existsSync(nsePath)) {
     try {
       const existingData = fs.readFileSync(nsePath, "utf-8");
-      const nse = JSON.parse(existingData);
 
       // Format is mapItemsIndex: Record<type, IndexItem[]>
-      nse.mapItemsIndex = {};
+      const newData = {} as any;
       Object.keys(groupedIndex).forEach((type) => {
-        if (!nse.mapItemsIndex[type]) {
-          nse.mapItemsIndex[type] = [];
+        if (!newData[type]) {
+          newData[type] = [];
         }
-        nse.mapItemsIndex[type].push(
+        newData[type].push(
           ...groupedIndex[type].flatMap((item) => ({
             name: item.name,
             uuid: item.uuid,
@@ -108,7 +112,7 @@ export const indexer = async (packagePath: string, outputFile: string) => {
         );
       });
 
-      fs.writeFileSync(nsePath, JSON.stringify(nse));
+      updateNSE(packagePath, "mapItemsIndex", newData);
 
       spinner.text = `Merged index with existing data in: ${nsePath}`;
     } catch (error) {

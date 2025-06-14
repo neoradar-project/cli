@@ -3,6 +3,7 @@ import path from "path";
 import { fileFilesWithExtension } from "../utils";
 import ora from "ora";
 import { cliParseSCT } from "./converter/sct";
+import { indexer } from "./indexer";
 
 const convertSCT2File = async (
   sectorFilesPath: string,
@@ -51,6 +52,9 @@ export const convert = (packagePath: string) => {
   ])
     .then(() => {
       console.log("Conversion completed successfully.");
+
+      // Running the indexer after conversion
+      indexer(packagePath, `${datasetsOutputPath}/nse.json`);
     })
     .catch((error) => {
       console.error(

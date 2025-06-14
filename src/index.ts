@@ -55,13 +55,23 @@ program
     convert(packagePath);
   });
 
-  program.command("index")
-  .description("Indexes GeoJSON features names and IDs in the specified directory and writes them to nse.json if present as well as updating the manifest.json")
-  .option("-p, --path [string]", "Directory of the package environment, defaults to current directory")
-  .option("-o, --output [string]", "Output file for the index, defaults to nse.json in the package/datasets directory")
+program
+  .command("index")
+  .description(
+    "Indexes GeoJSON features names and IDs in the specified directory and writes them to nse.json if present as well as updating the manifest.json"
+  )
+  .option(
+    "-p, --path [string]",
+    "Directory of the package environment, defaults to current directory"
+  )
+  .option(
+    "-o, --output [string]",
+    "Output file for the index, defaults to nse.json in the package/datasets directory"
+  )
   .action((options) => {
     const packagePath = options.path || process.cwd();
-    const outputFile = options.output || `${packagePath}/package/datasets/nse.json`;
+    const outputFile =
+      options.output || `${packagePath}/package/datasets/nse.json`;
     indexer(packagePath, outputFile);
   });
 
