@@ -1,0 +1,36 @@
+{
+  "name": "neoradar-cli",
+  "version": "1.0.0",
+  "description": "CLI Tool for neoradar for packaging and releasing sector files",
+  "main": "index.js",
+  "scripts": {
+    "prebuild": "node scripts/get-version.js",
+    "start": "node dist/index.js",
+    "build": "npx tsc",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/neoradar-project/cli.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "GNU General Public License v3.0",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/neoradar-project/cli/issues"
+  },
+  "homepage": "https://github.com/neoradar-project/cli#readme",
+  "devDependencies": {
+    "@types/figlet": "^1.7.0",
+    "@types/node": "^24.0.1",
+    "@types/yauzl": "^2.10.3",
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "commander": "^14.0.0",
+    "figlet": "^1.8.1",
+    "ky": "^1.8.1",
+    "yauzl": "^3.2.0"
+  }
+}
