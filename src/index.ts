@@ -11,11 +11,7 @@ import { distributeCommand } from "./commands/distribute";
 console.log(figlet.textSync("NeoRadar CLI"));
 
 const program = new Command();
-program
-  .version(versionInfo.version)
-  .description(
-    "CLI Tool for neoradar for packaging and releasing sector files"
-  );
+program.version(versionInfo.version).description("CLI Tool for neoradar for packaging and releasing sector files");
 
 program
   .command("version")
@@ -26,14 +22,9 @@ program
 
 program
   .command("init")
-  .description(
-    "Initializes a new package environment in the given folder and output directory"
-  )
+  .description("Initializes a new package environment in the given folder and output directory")
   .argument("<string>", "Path/folder in which to initialize the package")
-  .option(
-    "-n, --name <string>",
-    "Name of the package, defaults to the directory name"
-  )
+  .option("-n, --name <string>", "Name of the package, defaults to the directory name")
   .option("--lat, --latitude <number>", "Reference latitude for the package")
   .option("--lon, --longitude <number>", "Reference longitude for the package")
   .option(
@@ -41,41 +32,22 @@ program
     "The namespace to use for the package, defaults to the name. Choose a string that is unique to your package and does not change with package versions, for example lfff or lirr."
   )
   .action((folder, options) => {
-    initPackage(
-      folder,
-      options.name,
-      options.latitude,
-      options.longitude,
-      options.namespace
-    );
+    initPackage(folder, options.name, options.latitude, options.longitude, options.namespace);
   });
 
 program
   .command("convert")
-  .description(
-    "Converts an SCT2 and ESE (if available) as well as EuroScope config files to the neoradar format"
-  )
-  .argument(
-    "<string>",
-    "Path to the package environment or built package, defaults to current directory"
-  )
+  .description("Converts an SCT2 and ESE (if available) as well as EuroScope config files to the neoradar format")
+  .argument("<string>", "Path to the package environment or built package, defaults to current directory")
   .action((packagePath) => {
     convert(packagePath || process.cwd());
   });
 
 program
   .command("index")
-  .description(
-    "Indexes GeoJSON features names and IDs in the specified directory and writes them to nse.json if present as well as updating the manifest.json"
-  )
-  .argument(
-    "<string>",
-    "Directory of the package environment or built package, defaults to current directory"
-  )
-  .option(
-    "-o, --output [string]",
-    "Output file for the index, defaults to nse.json in the package/datasets directory"
-  )
+  .description("Indexes GeoJSON features names and IDs in the specified directory and writes them to nse.json if present as well as updating the manifest.json")
+  .argument("<string>", "Directory of the package environment or built package, defaults to current directory")
+  .option("-o, --output [string]", "Output file for the index, defaults to nse.json in the package/datasets directory")
   .action((packagePath, options) => {
     indexer(packagePath || process.cwd(), options.output);
   });
@@ -83,26 +55,14 @@ program
 program
   .command("distribute")
   .description("Prepares the package for distribution by creating a zip file")
-  .argument(
-    "<string>",
-    "Path to the package environment or built package, defaults to current directory"
-  )
-  .option(
-    "-n, --name <string>",
-    "New package name for the distribution, defaults to the current package name"
-  )
-  .option(
-    "--nv, --new-version <string>",
-    "New version for the distribution, defaults to the current package version"
-  )
+  .argument("<string>", "Path to the package environment or built package, defaults to current directory")
+  .option("-n, --name <string>", "New package name for the distribution, defaults to the current package name")
+  .option("--nv, --new-version <string>", "New version for the distribution, defaults to the current package version")
   .option("--no-indexing", "Skips the indexing step, defaults to false")
+  .option("-p, --publish", "Publishes the package using the publish.yml configuration file", false)
+  .option("--keep-deploy", "Keep the deploy directory after publishing (useful for debugging)", false)
   .action((packagePath, options) => {
-    distributeCommand(
-      packagePath || process.cwd(),
-      options.name,
-      options.newVersion,
-      options.indexing ? false : true
-    );
+    distributeCommand(packagePath || process.cwd(), options.name, options.newVersion, options.indexing ? false : true, options.publish, options.keepDeploy);
   });
 
 /*
