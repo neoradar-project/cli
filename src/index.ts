@@ -7,6 +7,7 @@ import { initPackage } from "./commands/init-package";
 import { convert } from "./commands/convert";
 import { indexer } from "./commands/indexer";
 import { distributeCommand } from "./commands/distribute";
+import { convertTopsky } from "./commands/convert-topsky";
 
 console.log(figlet.textSync("NeoRadar CLI"));
 
@@ -41,6 +42,19 @@ program
   .argument("<string>", "Path to the package environment or built package, defaults to current directory")
   .action((packagePath) => {
     convert(packagePath || process.cwd());
+  });
+
+program
+  .command("topsky-convert")
+  .description(
+    "Converts TopSky map files to the neoradar format"
+  )
+  .argument(
+    "<string>",
+    "Path to the package environment or built package, defaults to current directory"
+  )
+  .action((packagePath) => {
+    convertTopsky(packagePath || process.cwd());
   });
 
 program
