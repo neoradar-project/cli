@@ -87,17 +87,15 @@ const createOtherDirectories = (packageDirectory: string) => {
 };
 
 export const initPackage = async (
-  folderName: string,
-  outputDirectory: string,
+  packageDirectory: string,
+  name: string,
   latitude: number | undefined,
   longitude: number | undefined,
-  namespace: string | undefined,
-  name: string | undefined
+  namespace: string | undefined
 ) => {
-  const packageDirectory = outputDirectory;
 
   const spinner = ora(
-    `Initializing package "${folderName}" in directory: ${packageDirectory}`
+    `Initializing package "${name}" in directory: ${packageDirectory}`
   ).start();
 
   // Create the package directory if it doesn't exist
@@ -139,18 +137,16 @@ export const initPackage = async (
   const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
 
   // Update the manifest.json with the new information
-  packageJson.name = (name || folderName) + " " + getCurrentAiracCycle();
-  packageJson.description = `Package for ${
-    name || folderName
-  } sector files, AIRAC cycle ${getCurrentAiracCycle()}`;
+  packageJson.name = name + " " + getCurrentAiracCycle();
+  packageJson.description = `Package for ${name} sector files, AIRAC cycle ${getCurrentAiracCycle()}`;
   packageJson.id =
-    (name || folderName).toUpperCase().replace(/\s+/g, "_") +
+    name.toUpperCase().replace(/\s+/g, "_") +
     "_" +
     getCurrentAiracCycle();
   packageJson.basePackageVersion = basePackageVersion;
   packageJson.namespace =
-    namespace || folderName.toLowerCase().replace(/\s+/g, "_");
-  
+    namespace || name.toLowerCase().replace(/\s+/g, "_");
+
   // Convert lat and lon to mercator coordinates if provided
   if (latitude !== undefined && longitude !== undefined) {
     const [mercatorX, mercatorY] = toMercator([longitude, latitude]);

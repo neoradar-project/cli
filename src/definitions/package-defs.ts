@@ -67,3 +67,26 @@ export interface PackageProcedure {
   runway: string;
   points: string[];
 }
+
+export interface PackageMapLayer {
+  name: string;
+  type: "geojson";
+  source?: string;
+  defaultStyle?: any;
+  hasLabels?: boolean;
+  isLabelLayer?: boolean;
+}
+
+export interface PackageManifest {
+  name: string;
+  id: string;
+  createdAt: string;
+  version: string;
+  namespace: string;
+  description: string;
+  fonts: { alias: string; src: string }[];
+  lastActiveProfile: string;
+  devDisableAntialiasing: boolean;
+  centerPoint: number[];
+  mapLayers: PackageMapLayer[];
+}

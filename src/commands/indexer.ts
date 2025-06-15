@@ -6,12 +6,25 @@ import {
   getFeatureName,
 } from "../utils";
 import { updateNSE } from "../helper/nse";
+import { PackageManifest } from "../definitions/package-defs";
 
 interface IndexItem {
   type: string;
   name: string;
   uuid: string;
 }
+
+const DEFAULT_LABEL_LAYERS = [
+  "label",
+]
+
+const DEFAULT_LAYERS_WITH_LABELS = [
+  "fix",
+  "vor",
+  "ndb",
+  "airport",
+  "runway",
+]
 
 export const indexer = async (
   packagePath: string,
@@ -191,7 +204,7 @@ export const indexer = async (
           ?.replace(/\.geojson$/, "") || ""
     );
 
-    const manifestData = JSON.parse(fs.readFileSync(manifestPath, "utf-8"));
+    const manifestData = JSON.parse(fs.readFileSync(manifestPath, "utf-8")) as PackageManifest;
     const mapLayers = manifestData.mapLayers || [];
     const existingLayerNames = mapLayers.map((layer: any) => layer.source);
 
@@ -202,6 +215,8 @@ export const indexer = async (
           source: fileName,
           type: "geojson",
           name: fileName,
+          hasLabels: DEFAULT_LAYERS_WITH_LABELS.includes(fileName.toLocaleLowerCase()),
+          isLabelLayer: DEFAULT_LABEL_LAYERS.includes(fileName.toLocaleLowerCase()),
         });
         updateCount++;
       }

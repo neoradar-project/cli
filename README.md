@@ -25,7 +25,7 @@ Install the CLI tool: npm install -g github:neoradar-project/cli
 
 ### Creating the new environment
 
-Create a new package: neoradar-cli init --lat 42.000 --lon 1.000 -o ./MyNewPackage -n LFXX_FULL_PACKAGE -s lfxx
+Create a new package: neoradar-cli init ./MyNewPackage --lat 42.000 --lon 1.000 --name LFXX_FULL_PACKAGE --namespace lfxx
 
 Replace lat and lon with a latitude and longitude in decimal degree of a point that is roughly at the center of the area covered by your package. Replace the value of -o with your chosen output directory, and replace -s with a short, all character namespace name that will not change between versions of your package
 
@@ -54,7 +54,7 @@ A file called config.json is also placed at the root of the environment. Edit th
 
 ### Running the converter
 
-Executive neoradar-cli convert -p ./MyNewPackage
+Executive neoradar-cli convert ./MyNewPackage
 
 The conversion will now start, and you may be prompted with several questions. In case of errors, a log file will be created in the current working directory called neoradar-cli.log
 
@@ -62,6 +62,6 @@ The conversion will now start, and you may be prompted with several questions. I
 
 Once your package is ready, and you have made the required changes, you can prepare the package for distribution by running the following command:
 
-neoradar-cli distribute -p ./MyNewPackage
+neoradar-cli distribute ./MyNewPackage
 
 This will create a polished ZIP file containing your package, the content of which you can drop in NeoRadar/packages and start using!

@@ -41,6 +41,7 @@
     "ora": "^8.2.0",
     "sector-file-tools": "github:neoradar-project/sector-file-tools",
     "winston": "^3.17.0",
-    "yauzl": "^3.2.0"
+    "yauzl": "^3.2.0",
+    "zip-a-folder": "^3.1.9"
   }
 }
