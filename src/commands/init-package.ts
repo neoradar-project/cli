@@ -11,7 +11,7 @@ const tmpZipPath = require("path").join(
 import yauzl from "yauzl";
 import path from "path";
 import { getCurrentAiracCycle } from "../utils";
-import { defaultPackageConfig } from "../definitions/packageConfig";
+import { defaultPackageConfig } from "../definitions/package-config";
 
 const downloadBasePackage = async (
   packageDirectory: string,

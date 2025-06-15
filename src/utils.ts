@@ -1,6 +1,7 @@
 import fs from "fs";
 import { Position } from "sector-file-tools";
 import { Navaid, Segment } from "sector-file-tools/dist/src/sct";
+import readline from "readline";
 
 export const getCurrentAiracCycle = () => {
   const today = new Date();
@@ -126,6 +127,23 @@ export function getFeatureName(feature: GeoJSON.Feature<any>): string | null {
   return null;
 }
 
+export async function generateGeoJsonFilesForType(
+  path: string,
+  type: string,
+  allFeatures: any[]
+) {
+  const features = allFeatures;
+  const geojson = {
+    type: "FeatureCollection",
+    features: features,
+  };
+  const data = JSON.stringify(geojson);
+  const formattedType = type.replace(/-([a-z])/g, (match, letter) =>
+    letter.toUpperCase()
+  );
+  const filePath = `${path}/${formattedType}.geojson`;
+  fs.writeFileSync(filePath, data, "utf8");
+}
 
 export const convertColorFeaturePropertyToGeojsonProperties = (
   feature: GeoJSON.Feature,
@@ -165,4 +183,23 @@ export const convertColorFeaturePropertyToGeojsonProperties = (
       },
     };
   }
+};
+
+export const cleanEndLines = (value: string): string =>
+  value.replace(/\r/g, "");
+
+export const askForConfirmation = (message: string): Promise<boolean> => {
+  console.warn(message);
+
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  return new Promise<boolean>((resolve) => {
+    rl.question("Do you want to continue? (Y/N): ", (answer: string) => {
+      rl.close();
+      resolve(answer.toLowerCase() === "y" || answer.toLowerCase() === "yes");
+    });
+  });
 };

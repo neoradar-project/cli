@@ -62,7 +62,7 @@ program
   )
   .option(
     "-p, --path [string]",
-    "Directory of the package environment, defaults to current directory"
+    "Directory of the package environment or built package, defaults to current directory"
   )
   .option(
     "-o, --output [string]",
@@ -70,9 +70,7 @@ program
   )
   .action((options) => {
     const packagePath = options.path || process.cwd();
-    const outputFile =
-      options.output || `${packagePath}/package/datasets/nse.json`;
-    indexer(packagePath, outputFile);
+    indexer(packagePath, options.output);
   });
 
 /*

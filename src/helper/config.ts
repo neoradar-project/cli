@@ -1,6 +1,6 @@
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
-import { PackageConfigFile } from '../definitions/packageConfig';
+import { PackageConfigFile } from '../definitions/package-config';
 
 export function parseConfig(folderPath: string): PackageConfigFile | null {
     const configPath = join(folderPath, 'config.json');

@@ -6,22 +6,11 @@ import { multiLineString } from "@turf/helpers";
 import {
   convertColorFeaturePropertyToGeojsonProperties,
   extractAirwaySegment,
+  generateGeoJsonFilesForType,
 } from "../../utils";
+import { logSCTParsingError } from "../../helper/logger";
 
 const IGNORED_TYPES = ["low-airway", "high-airway"];
-
-async function generateGeoJsonFilesForType(path: string, type: string, allFeatures: any[]) {
-    const features = allFeatures;
-    const geojson = {
-      type: "FeatureCollection",
-      features: features,
-    };
-    const data = JSON.stringify(geojson);
-    const formattedType = type.replace(/-([a-z])/g, (match, letter) => letter.toUpperCase());
-    const filePath = `${path}/${formattedType}.geojson`;
-    fs.writeFileSync(filePath, data, "utf8");
-  }
-
 
 const handleAirwaysUUID = (sctData: SCT, features: GeoJSON.Feature[]) => {
   sctData.lowAirway.forEach((airway) => {
@@ -83,7 +72,7 @@ export const cliParseSCT = async (
     );
 
     if (!geoJsonData || !geoJsonData.features) {
-      spinner.fail("Failed to convert SCT to GeoJSON.");
+      spinner.fail("Failed to convert SCT to GeoJSON, no features found.");
       return;
     }
 
@@ -131,9 +120,11 @@ export const cliParseSCT = async (
         features.filter((f) => f.properties?.type === type)
       );
     });
-
-    spinner.succeed(`SCT file parsed successfully: ${sctFilePath}`);
   } catch (error) {
+    logSCTParsingError(
+      `Failed to parse SCT file: ${sctFilePath}`,
+      error instanceof Error ? error.message : "Unknown error"
+    );
     spinner.fail(
       `Failed to parse SCT file: ${
         error instanceof Error ? error.message : "Unknown error"
