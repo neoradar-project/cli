@@ -15,18 +15,21 @@ interface IndexItem {
 
 export const indexer = async (
   packagePath: string,
-  outputFile: string | undefined
+  outputFile: string | undefined,
+  skipConfirmation: boolean = false
 ) => {
   // Auto detect if we are directly in the package directory or in a package environment
   let datasetPath = `${packagePath}/package/datasets`;
 
-  const confirm = await askForConfirmation(
-    "\n⚠️  CAUTION: This operation will override the map index field in an existing NSE (if found), it will NOT remove or modify fields in your manifest, but only add missing layers"
-  );
+  if (!skipConfirmation) {
+    const confirm = await askForConfirmation(
+      "\n⚠️  CAUTION: This operation will override the map index field in an existing NSE (if found), it will NOT remove or modify existing layers in your manifest, but only add missing layers"
+    );
 
-  if (!confirm) {
-    console.log("Conversion aborted by user.");
-    return;
+    if (!confirm) {
+      console.log("Conversion aborted by user.");
+      return;
+    }
   }
 
   if (

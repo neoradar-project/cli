@@ -8,6 +8,7 @@ import { eseParser } from "./converter/ese";
 import { parseConfig } from "../helper/config";
 import { eseParsingErrorCount, sctParsingErrorCount } from "../helper/logger";
 import readline from "readline";
+import { atcData } from "./converter/atc-data-parser";
 
 const convertSCT2File = async (
   sectorFilesPath: string,
@@ -47,7 +48,7 @@ const convertESEFile = async (
     const config = parseConfig(`${sectorFilesPath}/../config.json`);
     const eseFilePath = path.join(sectorFilesPath, eseFiles[0]);
     try {
-      await eseParser.start(
+      const parsedEse = await eseParser.start(
         spinner,
         eseFilePath,
         datasetsOutputPath,
@@ -61,6 +62,8 @@ const convertESEFile = async (
       } else {
         spinner.succeed("ESE parsing completed successfully.");
       }
+
+      return parsedEse;
     } catch (error) {
       spinner.fail(
         `Error during ESE conversion: ${
@@ -79,8 +82,15 @@ export const convert = async (packagePath: string) => {
 
   const confirm = await askForConfirmation(
     "\n⚠️  CAUTION: This operation will:\n" +
-      "   • Override existing datasets with the same names\n" +
-      "   • Override fields that require update in the NSE\n"
+      "   • Override existing geojson datasets with the same names\n" +
+      "   • Override fields that require update in the NSE\n" +
+      "   • Override the atc-data file\n" +
+      "   • Add missing layers to the manifest\n" +
+      "   • Index all elements overriding the index in the NSE\n" +
+      "IT WILL NOT:\n" +
+      "   • Remove or edit existing layers in your manifest\n" +
+      "   • Remove custom geojson datasets\n" +
+      "   • Change any systems, images or fonts\n"
   );
 
   if (!confirm) {
@@ -93,10 +103,11 @@ export const convert = async (packagePath: string) => {
   const datasetsOutputPath = `${packagePath}/package/datasets`;
 
   await convertSCT2File(sectorFilesPath, datasetsOutputPath);
-  await convertESEFile(sectorFilesPath, datasetsOutputPath);
+  const parsedESE = await convertESEFile(sectorFilesPath, datasetsOutputPath);
+  await atcData.parseAtcdata(packagePath, parsedESE);
 
   // Running the indexer after conversion
-  await indexer(packagePath, `${datasetsOutputPath}/nse.json`);
+  await indexer(packagePath, `${datasetsOutputPath}/nse.json`, true);
 
   console.log(
     `Conversion completed for package environment at path: ${packagePath}`

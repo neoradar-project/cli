@@ -2,6 +2,7 @@ import winston from 'winston';
 
 export let sctParsingErrorCount = 0;
 export let eseParsingErrorCount = 0;
+export let atcDataParsingErrorCount = 0;
 
 const transports = {
   console: new winston.transports.Console({ level: 'warn' }),
@@ -38,4 +39,14 @@ export const logSCTParsingError = (message: string, ...meta: any[]) => {
 export const logSCTParsingWarning = (message: string, ...meta: any[]) => {
   sctParsingErrorCount++;
   logger.warn(`SCT Parsing warning #${sctParsingErrorCount}: ${message}`, ...meta);
+};
+
+export const logATCDataParsingError = (message: string, ...meta: any[]) => {
+  atcDataParsingErrorCount++;
+  logger.error(`ATC Data Parsing error #${atcDataParsingErrorCount}: ${message}`, ...meta);
+};
+
+export const logATCDataParsingWarning = (message: string, ...meta: any[]) => {
+  atcDataParsingErrorCount++;
+  logger.warn(`ATC Data Parsing warning #${atcDataParsingErrorCount}: ${message}`, ...meta);
 };

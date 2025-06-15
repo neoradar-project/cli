@@ -1,7 +1,5 @@
 import { Ora } from "ora";
 import fs from "fs";
-import { Position } from "sector-file-tools";
-import { Navaid, Segment } from "sector-file-tools/dist/src/sct";
 import { toWgs84 } from "@turf/projection";
 import { NseNavaid } from "../../definitions/package-defs";
 import { EseHelper, ParsedEseContent } from "../../helper/ese-helper";
@@ -21,22 +19,24 @@ class ESEParser {
         eseFilePath: string,
         datasetOutputPath: string,
         isGNG: boolean
-    ) {
+    ): Promise<ParsedEseContent | undefined> {
         this.datasetOutputPath = datasetOutputPath;
         this.isGNG = isGNG;
         this.nsePath = `${datasetOutputPath}/nse.json`;
 
         spinner.info(`Parsing ESE file: ${eseFilePath}`);
-        await this.generateNavdata(eseFilePath);
+        const parsedEseData = await this.generateNavdata(eseFilePath);
+
+        return parsedEseData;
     }
 
-    private async generateNavdata(eseFilePath: string): Promise<NseNavaid[]> {
+    private async generateNavdata(eseFilePath: string): Promise<ParsedEseContent | undefined> {
         try {
             const allNavaids = await this.processNavaids();
             await this.processRunways();
-            await this.processEseContent(eseFilePath, allNavaids);
-            
-            return allNavaids;
+            const parsedEse = await this.processEseContent(eseFilePath, allNavaids);
+
+            return parsedEse;
         } catch (error) {
             logESEParsingError(`Failed to generate navdata: ${error}`);
             throw error;
@@ -159,7 +159,7 @@ class ESEParser {
         };
     }
 
-    private async processEseContent(eseFilePath: string, allNavaids: NseNavaid[]): Promise<void> {
+    private async processEseContent(eseFilePath: string, allNavaids: NseNavaid[]): Promise<ParsedEseContent | undefined> {
         try {
             const eseProcessedData = await EseHelper.parseEseContent(
                 eseFilePath,
@@ -169,9 +169,12 @@ class ESEParser {
 
             updateNSE(this.datasetOutputPath, "position", eseProcessedData.position);
             updateNSE(this.datasetOutputPath, "procedure", eseProcessedData.procedure);
+
+            return eseProcessedData;
         } catch (error) {
             logESEParsingError(`Failed to process ESE content from ${eseFilePath}: ${error}`);
         }
+        return undefined;
     }
 
     private readGeoJsonFeatures(filePath: string): any[] {

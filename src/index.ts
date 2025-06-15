@@ -28,6 +28,11 @@ program
     "Initializes a new package environment in the given folder and output directory"
   )
   .argument("<string>", "Folder in which to initialize the package")
+  .option(
+    "--lat, --latitude <number>",
+    "Reference latitude for the package"
+  )
+  .option("--lon, --longitude <number>", "Reference longitude for the package")
   .option("-o, --out <string>", "Output directory for the package")
   .option(
     "-n, --name [string]",
@@ -38,7 +43,7 @@ program
     "The namespace to use for the package, defaults to the name. Choose a string that is unique to your package and does not change with package versions."
   )
   .action((folder, options) => {
-    initPackage(folder, options.out, options.namespace, options.name);
+    initPackage(folder, options.out, options.latitude, options.longitude, options.namespace, options.name);
   });
 
 program
