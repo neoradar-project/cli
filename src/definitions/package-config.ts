@@ -3,9 +3,14 @@ export interface PackageConfigFile {
   publish?: {
     bucketName: string;
     region: string;
-    endpoint: string;
-    envVariableAccessKeyId: string;
-    envVariableSecretAccessKey: string;
+    endpoint?: string;
+    s3Path?: string;
+    makePublic?: boolean;
+    envVariableAccessKeyId?: string;
+    envVariableSecretAccessKey?: string;
+    downloadUrl?: string;
+    baseUrl?: string;
+    keepDeploy?: boolean;
   } | null;
 }
 

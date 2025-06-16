@@ -11,50 +11,66 @@ import readline from "readline";
 import { atcData } from "./converter/atc-data-parser";
 import AsrFolderConverter from "./converter/asr";
 
-const convertSCT2File = async (sectorFilesPath: string, datasetsOutputPath: string) => {
-  const spinner = ora("Finding SCT2...").start();
+const convertSCT2AndESEFiles = async (sectorFilesPath: string, datasetsOutputPath: string) => {
+  const sctSpinner = ora("Finding SCT2...").start();
 
+  // Find SCT2 files
   const sctFiles = fileFilesWithExtension(sectorFilesPath, [".sct", ".sct2"]);
-  if (sctFiles.length === 0) {
-    spinner.fail("No SCT2 files found, skipping conversion.");
-  } else {
-    // Perform conversion for the first SCT2 file found
-    const sctFilePath = path.join(sectorFilesPath, sctFiles[0]);
-    await cliParseSCT(spinner, sctFilePath, false, datasetsOutputPath);
 
-    if (sctParsingErrorCount > 0) {
-      spinner.warn(`SCT2 parsing completed with ${sctParsingErrorCount} errors. Check logs for details.`);
+  // Find ESE files
+  const eseFiles = fileFilesWithExtension(sectorFilesPath, [".ese"]);
+
+  let sctFilePath: string | undefined;
+  let eseFilePath: string | undefined;
+  let parsedESE;
+
+  // Process SCT2 files
+  if (sctFiles.length === 0) {
+    sctSpinner.fail("No SCT2 files found, skipping SCT2 conversion.");
+  } else {
+    sctFilePath = path.join(sectorFilesPath, sctFiles[0]);
+
+    // Get ESE file path if available to pass to cliParseSCT
+    if (eseFiles.length > 0) {
+      eseFilePath = path.join(sectorFilesPath, eseFiles[0]);
+      await cliParseSCT(sctSpinner, sctFilePath, eseFilePath, false, datasetsOutputPath);
+
+      if (sctParsingErrorCount > 0) {
+        sctSpinner.warn(`SCT2 parsing completed with ${sctParsingErrorCount} errors. Check logs for details.`);
+      } else {
+        sctSpinner.succeed("SCT2 parsing completed successfully.");
+      }
     } else {
-      spinner.succeed("SCT2 parsing completed successfully.");
+      sctSpinner.warn("No ESE file found - cannot process SCT2 without ESE file.");
     }
   }
-};
 
-const convertESEFile = async (sectorFilesPath: string, datasetsOutputPath: string) => {
-  const spinner = ora("Finding ESE...").start();
+  // Process ESE files
+  const eseSpinner = ora("Finding ESE...").start();
 
-  const eseFiles = fileFilesWithExtension(sectorFilesPath, [".ese"]);
   if (eseFiles.length === 0) {
-    spinner.fail("No ESE files found, skipping conversion.");
+    eseSpinner.fail("No ESE files found, skipping ESE conversion.");
   } else {
-    // Perform conversion for the first ESE file found
+    if (!eseFilePath) {
+      eseFilePath = path.join(sectorFilesPath, eseFiles[0]);
+    }
+
     const config = parseConfig(`${sectorFilesPath}/../config.json`);
-    const eseFilePath = path.join(sectorFilesPath, eseFiles[0]);
+
     try {
-      const parsedEse = await eseParser.start(spinner, eseFilePath, datasetsOutputPath, config?.sectorFileFromGNG || false);
+      parsedESE = await eseParser.start(eseSpinner, eseFilePath, datasetsOutputPath, config?.sectorFileFromGNG || false);
 
       if (eseParsingErrorCount > 0) {
-        spinner.warn(`ESE parsing completed with ${eseParsingErrorCount} errors. Check logs for details.`);
+        eseSpinner.warn(`ESE parsing completed with ${eseParsingErrorCount} errors. Check logs for details.`);
       } else {
-        spinner.succeed("ESE parsing completed successfully.");
+        eseSpinner.succeed("ESE parsing completed successfully.");
       }
-
-      return parsedEse;
     } catch (error) {
-      spinner.fail(`Error during ESE conversion: ${error instanceof Error ? error.message : "Unknown error"}`);
-      return;
+      eseSpinner.fail(`Error during ESE conversion: ${error instanceof Error ? error.message : "Unknown error"}`);
     }
   }
+
+  return parsedESE;
 };
 
 const convertASRFolder = async (packagePath: string) => {
@@ -172,8 +188,7 @@ export const convert = async (packagePath: string) => {
   const sectorFilesPath = `${packagePath}/sector_files`;
   const datasetsOutputPath = `${packagePath}/package/datasets`;
 
-  await convertSCT2File(sectorFilesPath, datasetsOutputPath);
-  const parsedESE = await convertESEFile(sectorFilesPath, datasetsOutputPath);
+  const parsedESE = await convertSCT2AndESEFiles(sectorFilesPath, datasetsOutputPath);
   await convertASRFolder(packagePath);
   await atcData.parseAtcdata(packagePath, parsedESE);
 

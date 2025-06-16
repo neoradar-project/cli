@@ -1,21 +1,21 @@
 import ora from "ora";
 import fs from "fs";
 import path from "path";
-import yaml from "yaml";
 import { PackageManifest } from "../definitions/package-defs";
-import { ProviderManifest, PublishConfig } from "../definitions/provider-defs";
+import { ProviderManifest } from "../definitions/provider-defs";
 import { zip } from "zip-a-folder";
 import { indexer } from "./indexer";
 import { calculateZipHash } from "../helper/publish/checksum";
 import { processAllFiles } from "../helper/publish//file-scanner";
 import { uploadToS3 } from "../helper/publish//s3-uploader";
+import { parseConfig } from "../helper/config";
 
 export const distributeCommand = async (
   packageEnvironmentPath: string,
   newPackageName: string | undefined,
   newVersion: string | undefined,
   skipIndexing: boolean | undefined,
-  publishConfig?: boolean,
+  publish?: boolean,
   keepDeploy?: boolean
 ) => {
   const spinner = ora("Preparing package for distribution...").start();
@@ -136,7 +136,7 @@ export const distributeCommand = async (
 
     spinner.succeed(`Package prepared for distribution successfully! Zip file created at: ${zipFilePath}`);
 
-    if (publishConfig) {
+    if (publish) {
       await handlePublishing(packageEnvironmentPath, newPackageID, manifest, zipFilePath, spinner, keepDeploy);
     }
   } catch (error) {
@@ -155,32 +155,30 @@ async function handlePublishing(
 ) {
   spinner.text = "Reading publish configuration...";
 
-  const publishConfigPath = path.join(packageEnvironmentPath, "publish.yml");
-  if (!fs.existsSync(publishConfigPath)) {
-    spinner.fail(`publish.yml not found at ${publishConfigPath}. Please create a publish configuration file.`);
+  const config = parseConfig(`${packageEnvironmentPath}/config.json`);
+  if (!config) {
+    spinner.fail(`Configuration file not found or invalid at ${packageEnvironmentPath}/config.json. Please create a valid configuration file.`);
     return;
   }
 
-  let config: PublishConfig;
-  try {
-    const configContent = fs.readFileSync(publishConfigPath, "utf-8");
-    config = yaml.parse(configContent) as PublishConfig;
-  } catch (error) {
-    spinner.fail(`Failed to parse publish.yml: ${error instanceof Error ? error.message : "Unknown error"}`);
+  if (!config.publish) {
+    spinner.info("Publish configuration not found, skipping publishing step.");
     return;
   }
 
-  if (!config.bucketName || !config.region) {
-    spinner.fail("publish.yml must contain bucketName and region");
+  const publishConfig = config.publish;
+
+  if (!publishConfig.bucketName || !publishConfig.region) {
+    spinner.fail("publish config must contain bucketName and region");
     return;
   }
 
-  if (config.envVariableAccessKeyId && config.envVariableSecretAccessKey) {
-    if (process.env[config.envVariableAccessKeyId]) {
-      process.env.AWS_ACCESS_KEY_ID = process.env[config.envVariableAccessKeyId];
+  if (publishConfig.envVariableAccessKeyId && publishConfig.envVariableSecretAccessKey) {
+    if (process.env[publishConfig.envVariableAccessKeyId]) {
+      process.env.AWS_ACCESS_KEY_ID = process.env[publishConfig.envVariableAccessKeyId];
     }
-    if (process.env[config.envVariableSecretAccessKey]) {
-      process.env.AWS_SECRET_ACCESS_KEY = process.env[config.envVariableSecretAccessKey];
+    if (process.env[publishConfig.envVariableSecretAccessKey]) {
+      process.env.AWS_SECRET_ACCESS_KEY = process.env[publishConfig.envVariableSecretAccessKey];
     }
     spinner.info("Using custom environment variables for AWS credentials");
   } else {
@@ -222,9 +220,9 @@ async function handlePublishing(
 
   spinner.text = "Generating provider manifest...";
 
-  const s3Path = config.s3Path || packageId;
-  const baseUrl = config.baseUrl || `https://${config.bucketName}.s3.${config.region}.amazonaws.com/${s3Path}`;
-  const downloadUrl = config.downloadUrl || `${baseUrl}/dist/${path.basename(zipFilePath)}`;
+  const s3Path = publishConfig.s3Path || packageId;
+  const baseUrl = publishConfig.baseUrl || `https://${publishConfig.bucketName}.s3.${publishConfig.region}.amazonaws.com/${s3Path}`;
+  const downloadUrl = publishConfig.downloadUrl || `${baseUrl}/dist/${path.basename(zipFilePath)}`;
 
   const providerManifest: ProviderManifest = {
     schemaVersion: "1.0.0",
@@ -257,10 +255,10 @@ async function handlePublishing(
 
   try {
     await uploadToS3(deployDir, {
-      region: config.region,
-      bucket: config.bucketName,
+      region: publishConfig.region,
+      bucket: publishConfig.bucketName,
       path: s3Path,
-      makePublic: config.makePublic !== false,
+      makePublic: publishConfig.makePublic !== false,
     });
 
     spinner.succeed("Package published successfully!");
@@ -268,7 +266,7 @@ async function handlePublishing(
     spinner.info(`Manifest URL: ${baseUrl}/manifest.json`);
     spinner.info(`Download URL: ${downloadUrl}`);
 
-    const shouldKeepDeploy = keepDeploy || config.keepDeploy;
+    const shouldKeepDeploy = keepDeploy || publishConfig.keepDeploy;
     if (shouldKeepDeploy) {
       spinner.info(`Deploy directory preserved at: ${deployDir}`);
     } else {

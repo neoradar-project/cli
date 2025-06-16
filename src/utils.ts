@@ -9,15 +9,11 @@ export const getCurrentAiracCycle = () => {
   const month = today.getUTCMonth() + 1; // Months are 0-indexed in JavaScript
   const cycleMonth = Math.ceil(month / 2) * 2; // AIRAC cycles are every 28 days, so we round up to the nearest even month
   const cycleYear = cycleMonth > 12 ? year + 1 : year; // If the month exceeds December, increment the year
-  const cycleMonthStr =
-    cycleMonth > 9 ? cycleMonth.toString() : `0${cycleMonth}`;
+  const cycleMonthStr = cycleMonth > 9 ? cycleMonth.toString() : `0${cycleMonth}`;
   return `${cycleYear.toFixed(0).slice(2)}${cycleMonthStr}`;
 };
 
-export const fileFilesWithExtension = (
-  directory: string,
-  extensions: string[]
-): string[] => {
+export const fileFilesWithExtension = (directory: string, extensions: string[]): string[] => {
   const matchingFiles: string[] = [];
   try {
     const files = fs.readdirSync(directory);
@@ -27,11 +23,7 @@ export const fileFilesWithExtension = (
       }
     });
   } catch (error) {
-    console.error(
-      `Error reading directory ${directory}: ${
-        error instanceof Error ? error.message : "Unknown error"
-      }`
-    );
+    console.error(`Error reading directory ${directory}: ${error instanceof Error ? error.message : "Unknown error"}`);
     return [];
   }
   return matchingFiles;
@@ -41,21 +33,12 @@ export function extractAirwaySegment(segment: Segment): number[][] {
   let returnSegment: number[][] = [];
   returnSegment.push(
     "position" in segment.start
-      ? [
-          (segment.start as Navaid).position.lonFloat,
-          (segment.start as Navaid).position.latFloat,
-        ]
-      : [
-          (segment.start as Position).lonFloat,
-          (segment.start as Position).latFloat,
-        ]
+      ? [(segment.start as Navaid).position.lonFloat, (segment.start as Navaid).position.latFloat]
+      : [(segment.start as Position).lonFloat, (segment.start as Position).latFloat]
   );
   returnSegment.push(
     "position" in segment.end
-      ? [
-          (segment.end as Navaid).position.lonFloat,
-          (segment.end as Navaid).position.latFloat,
-        ]
+      ? [(segment.end as Navaid).position.lonFloat, (segment.end as Navaid).position.latFloat]
       : [(segment.end as Position).lonFloat, (segment.end as Position).latFloat]
   );
   return returnSegment;
@@ -69,9 +52,7 @@ export function getFeatureName(feature: GeoJSON.Feature<any>): string | null {
   const type = feature.properties.type;
 
   // Standard name property types
-  if (
-    ["airport", "fix", "highAirway", "lowAirway", "ndb", "vor"].includes(type)
-  ) {
+  if (["airport", "fix", "highAirway", "lowAirway", "ndb", "vor"].includes(type)) {
     if (feature.properties.name) {
       return feature.properties.name;
     }
@@ -84,18 +65,7 @@ export function getFeatureName(feature: GeoJSON.Feature<any>): string | null {
   }
 
   // Section property types
-  if (
-    [
-      "artcc-high",
-      "artcc-low",
-      "artcc",
-      "geo",
-      "high-airway",
-      "low-airway",
-      "sid",
-      "star",
-    ].includes(type)
-  ) {
+  if (["artcc-high", "artcc-low", "artcc", "geo", "high-airway", "low-airway", "sid", "star"].includes(type)) {
     if (feature.properties.section) {
       return feature.properties.section;
     }
@@ -127,28 +97,19 @@ export function getFeatureName(feature: GeoJSON.Feature<any>): string | null {
   return null;
 }
 
-export async function generateGeoJsonFilesForType(
-  path: string,
-  type: string,
-  allFeatures: any[]
-) {
+export async function generateGeoJsonFilesForType(path: string, type: string, allFeatures: any[]) {
   const features = allFeatures;
   const geojson = {
     type: "FeatureCollection",
     features: features,
   };
   const data = JSON.stringify(geojson);
-  const formattedType = type.replace(/-([a-z])/g, (match, letter) =>
-    letter.toUpperCase()
-  );
+  const formattedType = type.replace(/-([a-z])/g, (match, letter) => letter.toUpperCase());
   const filePath = `${path}/${formattedType}.geojson`;
   fs.writeFileSync(filePath, data, "utf8");
 }
 
-export const convertColorFeaturePropertyToGeojsonProperties = (
-  feature: GeoJSON.Feature,
-  isPolygon: boolean = false
-): GeoJSON.Feature => {
+export const convertColorFeaturePropertyToGeojsonProperties = (feature: GeoJSON.Feature, isPolygon: boolean = false): GeoJSON.Feature => {
   const { properties } = feature;
   if (!properties) {
     return feature;
@@ -185,8 +146,7 @@ export const convertColorFeaturePropertyToGeojsonProperties = (
   }
 };
 
-export const cleanEndLines = (value: string): string =>
-  value.replace(/\r/g, "");
+export const cleanEndLines = (value: string): string => value.replace(/\r/g, "");
 
 export const askForConfirmation = (message: string): Promise<boolean> => {
   console.warn(message);

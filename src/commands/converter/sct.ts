@@ -1,13 +1,9 @@
 import fs from "fs";
-import { parseSct, SCT, toGeoJson } from "sector-file-tools";
+import { parseSct, parseEse, SCT, toGeoJson } from "sector-file-tools";
 import { Ora } from "ora";
 import { uuidManager } from "../../helper/uuids";
 import { multiLineString } from "@turf/helpers";
-import {
-  convertColorFeaturePropertyToGeojsonProperties,
-  extractAirwaySegment,
-  generateGeoJsonFilesForType,
-} from "../../utils";
+import { convertColorFeaturePropertyToGeojsonProperties, extractAirwaySegment, generateGeoJsonFilesForType } from "../../utils";
 import { logSCTParsingError } from "../../helper/logger";
 
 const IGNORED_TYPES = ["low-airway", "high-airway"];
@@ -42,18 +38,18 @@ const handleAirwaysUUID = (sctData: SCT, features: GeoJSON.Feature[]) => {
   });
 };
 
-export const cliParseSCT = async (
-  spinner: Ora,
-  sctFilePath: string,
-  isGNG: boolean,
-  outputPath: string
-) => {
+export const cliParseSCT = async (spinner: Ora, sctFilePath: string, eseFilePath: string, isGNG: boolean, outputPath: string) => {
   // Implementation for parsing SCT files
 
   spinner.text = `Reading file: ${sctFilePath}`;
   const sctFileContent = await fs.promises.readFile(sctFilePath, "utf-8");
   if (!sctFileContent) {
     spinner.fail("SCT file is empty or not found.");
+  }
+  const eseFileContent = await fs.promises.readFile(eseFilePath, "utf-8");
+  if (!eseFileContent) {
+    spinner.fail("ESE file is empty or not found.");
+    return;
   }
   try {
     spinner.text = "Running GeoTools parser on SCT file...";
@@ -62,14 +58,13 @@ export const cliParseSCT = async (
       spinner.fail("Failed to parse SCT file.");
       return;
     }
+    const parsedESE = parseEse(parsedSCT, eseFileContent);
+    if (!parsedESE) {
+      spinner.fail("Failed to parse ESE file.");
+      return;
+    }
 
-    spinner.text = "Converting SCT to GeoJSON...";
-    const geoJsonData = toGeoJson(
-      parsedSCT,
-      { freetext: {}, positions: [] },
-      null,
-      true
-    );
+    const geoJsonData = toGeoJson(parsedSCT, parsedESE, null, true);
 
     if (!geoJsonData || !geoJsonData.features) {
       spinner.fail("Failed to convert SCT to GeoJSON, no features found.");
@@ -88,10 +83,7 @@ export const cliParseSCT = async (
     spinner.text = "Converting colours in GeoJSON features...";
     features.forEach((f) => {
       if (f.properties?.color) {
-        f.properties = convertColorFeaturePropertyToGeojsonProperties(
-          f,
-          (f.properties?.type ?? "") === "region"
-        ).properties;
+        f.properties = convertColorFeaturePropertyToGeojsonProperties(f, (f.properties?.type ?? "") === "region").properties;
       }
     });
 
@@ -102,13 +94,9 @@ export const cliParseSCT = async (
       }
     });
 
-    const datasetsToWrite: string[] = Array.from(allTypes.keys()).filter(
-      (type) => !IGNORED_TYPES.includes(type)
-    );
+    const datasetsToWrite: string[] = Array.from(allTypes.keys()).filter((type) => !IGNORED_TYPES.includes(type));
 
-    spinner.info(`Found ${datasetsToWrite.length} datasets to write: ${Array.from(
-      allTypes
-    ).join(", ")}`);
+    spinner.info(`Found ${datasetsToWrite.length} datasets to write: ${Array.from(allTypes).join(", ")}`);
 
     uuidManager.registerTypes(datasetsToWrite);
 
@@ -121,15 +109,8 @@ export const cliParseSCT = async (
       );
     });
   } catch (error) {
-    logSCTParsingError(
-      `Failed to parse SCT file: ${sctFilePath}`,
-      error instanceof Error ? error.message : "Unknown error"
-    );
-    spinner.fail(
-      `Failed to parse SCT file: ${
-        error instanceof Error ? error.message : "Unknown error"
-      }`
-    );
+    logSCTParsingError(`Failed to parse SCT file: ${sctFilePath}`, error instanceof Error ? error.message : "Unknown error");
+    spinner.fail(`Failed to parse SCT file: ${error instanceof Error ? error.message : "Unknown error"}`);
     throw error;
   }
 };

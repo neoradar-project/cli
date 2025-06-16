@@ -70,19 +70,11 @@ program
   .option("-n, --name <string>", "New package name for the distribution, defaults to the current package name")
   .option("--nv, --new-version <string>", "New version for the distribution, defaults to the current package version")
   .option("--no-indexing", "Skips the indexing step, defaults to false")
-  .option("-p, --publish", "Publishes the package using the publish.yml configuration file", false)
+  .option("-p, --publish", "Publishes the package using the publish configuration inside config.json", false)
   .option("--keep-deploy", "Keep the deploy directory after publishing (useful for debugging)", false)
   .action((packagePath, options) => {
     distributeCommand(packagePath || process.cwd(), options.name, options.newVersion, options.indexing ? false : true, options.publish, options.keepDeploy);
   });
-
-/*
-  .option("-u, --update <package_path>", "Checks for updates in the given package path against base package")
-  .option("-v, --validate <package_path>", "Runs a schema validation on the sector file in the given path")
-  .option("-b, --build <package_path>", "Starts the build process for the sector file at the given path")
-  .option("-d, --distribute <package_path>", "Prepares the sector file for distribution by creating a zip file in the given path")
-  .option("-p, --publish <path>", "Publishes a sector file to the specify endpoint with the given publish.yml config")
-  */
 
 program.parse(process.argv);
 

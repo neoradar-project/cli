@@ -1,10 +1,6 @@
 import ora from "ora";
 import fs from "fs";
-import {
-  askForConfirmation,
-  fileFilesWithExtension,
-  getFeatureName,
-} from "../utils";
+import { askForConfirmation, fileFilesWithExtension, getFeatureName } from "../utils";
 import { updateNSE } from "../helper/nse";
 import { PackageManifest } from "../definitions/package-defs";
 
@@ -14,23 +10,29 @@ interface IndexItem {
   uuid: string;
 }
 
-const DEFAULT_LABEL_LAYERS = [
-  "label",
-]
+const DEFAULT_LABEL_LAYERS = ["label"];
 
-const DEFAULT_LAYERS_WITH_LABELS = [
+const DEFAULT_LAYERS_WITH_LABELS = ["fix", "vor", "ndb", "airport", "runway"];
+
+const PREFERRED_LAYER_ORDER = [
+  "region",
+  "artcc",
+  "artccHigh",
+  "artccLow",
+  "lowAirway",
+  "highAirway",
+  "sid",
+  "star",
+  "geo",
   "fix",
   "vor",
   "ndb",
   "airport",
   "runway",
-]
+  "label",
+];
 
-export const indexer = async (
-  packagePath: string,
-  outputFile: string | undefined,
-  skipConfirmation: boolean = false
-) => {
+export const indexer = async (packagePath: string, outputFile: string | undefined, skipConfirmation: boolean = false) => {
   // Auto detect if we are directly in the package directory or in a package environment
   let datasetPath = `${packagePath}/package/datasets`;
 
@@ -45,17 +47,12 @@ export const indexer = async (
     }
   }
 
-  if (
-    !fs.existsSync(`${packagePath}/package`) &&
-    fs.existsSync(`${packagePath}/datasets`)
-  ) {
+  if (!fs.existsSync(`${packagePath}/package`) && fs.existsSync(`${packagePath}/datasets`)) {
     datasetPath = `${packagePath}/datasets`;
   } else {
     // If the packagePath does not contain a package directory, we assume it's a direct dataset path
     if (!fs.existsSync(datasetPath)) {
-      console.error(
-        `Dataset path does not exist: ${datasetPath}. Please provide a valid package path.`
-      );
+      console.error(`Dataset path does not exist: ${datasetPath}. Please provide a valid package path.`);
       return;
     }
   }
@@ -86,17 +83,13 @@ export const indexer = async (
       geojson.features.forEach((feature: GeoJSON.Feature) => {
         const name = getFeatureName(feature);
         if (!name) {
-          spinner.warn(
-            `Feature in file ${file} has no valid name property. Skipping.`
-          );
+          spinner.warn(`Feature in file ${file} has no valid name property. Skipping.`);
           return;
         }
 
         const uuid = feature.properties?.uuid;
         if (!uuid) {
-          spinner.warn(
-            `Feature in file ${file} with name "${name}" has no UUID. Skipping.`
-          );
+          spinner.warn(`Feature in file ${file} with name "${name}" has no UUID. Skipping.`);
           return;
         }
 
@@ -107,11 +100,7 @@ export const indexer = async (
         });
       });
     } catch (error) {
-      spinner.warn(
-        `Failed to parse GeoJSON file: ${file}. Error: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
-      );
+      spinner.warn(`Failed to parse GeoJSON file: ${file}. Error: ${error instanceof Error ? error.message : "Unknown error"}`);
       return;
     }
   });
@@ -122,26 +111,16 @@ export const indexer = async (
     if (!groupedIndex[item.type]) {
       groupedIndex[item.type] = [];
     }
-    if (
-      !groupedIndex[item.type].some(
-        (existingItem) => existingItem.name === item.name
-      )
-    ) {
+    if (!groupedIndex[item.type].some((existingItem) => existingItem.name === item.name)) {
       groupedIndex[item.type].push(item);
     }
   });
 
-  spinner.info(
-    `Indexed ${indexItems.length} items across ${
-      Object.keys(groupedIndex).length
-    } types.`
-  );
+  spinner.info(`Indexed ${indexItems.length} items across ${Object.keys(groupedIndex).length} types.`);
   Object.keys(groupedIndex).forEach((type) => {
     spinner.info(`Type: ${type} - Indexed ${groupedIndex[type].length} items`);
   });
 
-  // Write the index to the output file
-  // We first read the file if it exists to merge with existing data, and write the JSON object mapIndex: Record<string, IndexItem[]>
   if (fs.existsSync(nsePath)) {
     spinner.text = `Writing index to existing nse.json file: ${nsePath}`;
     try {
@@ -163,11 +142,7 @@ export const indexer = async (
 
       spinner.info(`Merged index into existing NSE: ${nsePath}`);
     } catch (error) {
-      spinner.fail(
-        `Failed to read or parse existing nse.json file: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
-      );
+      spinner.fail(`Failed to read or parse existing nse.json file: ${error instanceof Error ? error.message : "Unknown error"}`);
       return;
     }
   } else {
@@ -183,11 +158,7 @@ export const indexer = async (
       fs.writeFileSync(outputFile, JSON.stringify(nse, null, 2));
       spinner.info(`Index written to file: ${outputFile}`);
     } catch (error) {
-      spinner.fail(
-        `Failed to write index to file: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
-      );
+      spinner.fail(`Failed to write index to file: ${error instanceof Error ? error.message : "Unknown error"}`);
       return;
     }
   }
@@ -204,19 +175,21 @@ export const indexer = async (
           ?.replace(/\.geojson$/, "") || ""
     );
 
+    const sortedLayerNames = sortLayersByPreferredOrder(strippedGeoJSONFileNames);
+
     const manifestData = JSON.parse(fs.readFileSync(manifestPath, "utf-8")) as PackageManifest;
     const mapLayers = manifestData.mapLayers || [];
     const existingLayerNames = mapLayers.map((layer: any) => layer.source);
 
     let updateCount = 0;
-    strippedGeoJSONFileNames.forEach((fileName) => {
+    sortedLayerNames.forEach((fileName) => {
       if (!existingLayerNames.includes(fileName)) {
         mapLayers.push({
           source: fileName,
           type: "geojson",
           name: fileName,
-          hasLabels: DEFAULT_LAYERS_WITH_LABELS.includes(fileName.toLocaleLowerCase()),
-          isLabelLayer: DEFAULT_LABEL_LAYERS.includes(fileName.toLocaleLowerCase()),
+          hasLabels: DEFAULT_LAYERS_WITH_LABELS.includes(fileName.toLowerCase()),
+          isLabelLayer: DEFAULT_LABEL_LAYERS.includes(fileName.toLowerCase()),
         });
         updateCount++;
       }
@@ -230,10 +203,25 @@ export const indexer = async (
       spinner.info("No new layers to add to the manifest.");
     }
   } else {
-    spinner.warn(
-      `Manifest file not found at: ${manifestPath}. Skipping manifest update.`
-    );
+    spinner.warn(`Manifest file not found at: ${manifestPath}. Skipping manifest update.`);
   }
 
   spinner.succeed("Indexing completed successfully.");
+};
+
+const sortLayersByPreferredOrder = (layerNames: string[]): string[] => {
+  return layerNames.sort((a, b) => {
+    const indexA = PREFERRED_LAYER_ORDER.indexOf(a);
+    const indexB = PREFERRED_LAYER_ORDER.indexOf(b);
+    if (indexA !== -1 && indexB !== -1) {
+      return indexA - indexB;
+    }
+    if (indexA !== -1 && indexB === -1) {
+      return -1;
+    }
+    if (indexA === -1 && indexB !== -1) {
+      return 1;
+    }
+    return 0;
+  });
 };

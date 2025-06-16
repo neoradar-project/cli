@@ -30,16 +30,3 @@ export interface ProviderManifest {
   updatedAt?: string;
   packageInfo: ProviderPackage;
 }
-
-export interface PublishConfig {
-  bucketName: string;
-  region: string;
-  endpoint?: string;
-  s3Path?: string;
-  makePublic?: boolean;
-  envVariableAccessKeyId?: string;
-  envVariableSecretAccessKey?: string;
-  downloadUrl?: string;
-  baseUrl?: string;
-  keepDeploy?: boolean;
-}
