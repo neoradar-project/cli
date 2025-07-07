@@ -55,7 +55,7 @@ const convertSCT2AndESEFiles = async (sectorFilesPath: string, datasetsOutputPat
       eseFilePath = path.join(sectorFilesPath, eseFiles[0]);
     }
 
-    const config = parseConfig(`${sectorFilesPath}/../config.json`);
+    const config = parseConfig(`${sectorFilesPath}/../`);
 
     try {
       parsedESE = await eseParser.start(eseSpinner, eseFilePath, datasetsOutputPath, config?.sectorFileFromGNG || false);

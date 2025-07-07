@@ -155,7 +155,7 @@ async function handlePublishing(
 ) {
   spinner.text = "Reading publish configuration...";
 
-  const config = parseConfig(`${packageEnvironmentPath}/config.json`);
+  const config = parseConfig(`${packageEnvironmentPath}`);
   if (!config) {
     spinner.fail(`Configuration file not found or invalid at ${packageEnvironmentPath}/config.json. Please create a valid configuration file.`);
     return;
