@@ -13,15 +13,11 @@ const indexer_1 = require("./commands/indexer");
 const distribute_1 = require("./commands/distribute");
 const convert_topsky_1 = require("./commands/convert-topsky");
 const path_1 = __importDefault(require("path"));
-console.log(figlet_1.default.textSync("NeoRadar CLI"));
+console.log(figlet_1.default.textSync("NeoRadar CLI", { font: "Colossal" }));
 const program = new commander_1.Command();
-program.version(version_json_1.default.version).description("CLI Tool for neoradar for packaging and releasing sector files");
 program
-    .command("version")
-    .description("Displays the current version of the NeoRadar CLI")
-    .action(() => {
-    console.log(`NeoRadar CLI version: ${version_json_1.default.version} built at ${version_json_1.default.buildTime}`);
-});
+    .version(`${version_json_1.default.version} built at ${version_json_1.default.buildTime}`)
+    .description("CLI Tool for neoradar for packaging and releasing sector files");
 program
     .command("init")
     .description("Initializes a new package environment in the given folder and output directory")
