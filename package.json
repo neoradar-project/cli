@@ -3,9 +3,7 @@
   "version": "1.0.0",
   "description": "CLI Tool for neoradar for packaging and releasing sector files",
   "main": "index.js",
-  "bin": {
-    "neoradar-cli": "dist/index.js"
-  },
+  "bin": "index.js",
   "preferGlobal": true,
   "engines": {
     "node": ">=22.0.0"
@@ -23,7 +21,7 @@
   "keywords": [],
   "author": "NeoRadar Project",
   "license": "GNU General Public License v3.0",
-  "type": "commonjs",
+  "type": "module",
   "bugs": {
     "url": "https://github.com/neoradar-project/cli/issues"
   },
