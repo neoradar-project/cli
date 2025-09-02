@@ -45,6 +45,7 @@ const atc_position_parser_1 = require("../commands/converter/nse/atc-position-pa
 const procedure_parser_1 = require("../commands/converter/nse/procedure-parser");
 const logger_1 = require("./logger");
 class EseHelper {
+    static isGNG = false;
     static createEmptySector() {
         return {
             name: "",
@@ -340,5 +341,4 @@ class EseHelper {
     }
 }
 exports.EseHelper = EseHelper;
-EseHelper.isGNG = false;
 //# sourceMappingURL=ese-helper.js.map

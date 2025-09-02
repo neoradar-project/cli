@@ -38,6 +38,25 @@ const path_1 = require("path");
 const turf = __importStar(require("@turf/turf"));
 const projection_1 = require("@turf/projection");
 class AsrFolderConverter {
+    static layerTypeMapping = {
+        "ARTCC high boundary": "artccHigh",
+        "ARTCC low boundary": "artccLow",
+        "ARTCC boundary": "artcc",
+        Regions: "region",
+        "Low airways": "lowAirway",
+        "High airways": "highAirway",
+        Sids: "sid",
+        Stars: "star",
+        Geo: "geo",
+        Fixes: "fix",
+        VORs: "vor",
+        NDBs: "ndb",
+        Airports: "airport",
+        Runways: "runway",
+        "Free text": "label",
+    };
+    static pointTypes = new Set(["fix", "vor", "ndb", "airport"]);
+    static textOnlyTypes = new Set(["label"]);
     static createUniqueId(type, name) {
         const typeStr = type.replace(/([a-z0-9])([A-Z])/g, "$1-$2").toLowerCase();
         const formatted = `${typeStr}-${name}`.toLowerCase().replace(/[^a-z0-9-]/g, "-");
@@ -161,24 +180,5 @@ class AsrFolderConverter {
         }
     }
 }
-AsrFolderConverter.layerTypeMapping = {
-    "ARTCC high boundary": "artccHigh",
-    "ARTCC low boundary": "artccLow",
-    "ARTCC boundary": "artcc",
-    Regions: "region",
-    "Low airways": "lowAirway",
-    "High airways": "highAirway",
-    Sids: "sid",
-    Stars: "star",
-    Geo: "geo",
-    Fixes: "fix",
-    VORs: "vor",
-    NDBs: "ndb",
-    Airports: "airport",
-    Runways: "runway",
-    "Free text": "label",
-};
-AsrFolderConverter.pointTypes = new Set(["fix", "vor", "ndb", "airport"]);
-AsrFolderConverter.textOnlyTypes = new Set(["label"]);
 exports.default = AsrFolderConverter;
 //# sourceMappingURL=asr.js.map

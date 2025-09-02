@@ -11,11 +11,10 @@ const utils_1 = require("../../utils");
 const nse_1 = require("../../helper/nse");
 const logger_1 = require("../../helper/logger");
 class ESEParser {
-    constructor() {
-        this.isGNG = false;
-        this.datasetOutputPath = "";
-        this.nsePath = "";
-    }
+    static NAVAID_TYPES = ["vor", "ndb", "fix", "airport"];
+    isGNG = false;
+    datasetOutputPath = "";
+    nsePath = "";
     async start(spinner, eseFilePath, datasetOutputPath, isGNG) {
         this.datasetOutputPath = datasetOutputPath;
         this.isGNG = isGNG;
@@ -168,6 +167,5 @@ class ESEParser {
         }
     }
 }
-ESEParser.NAVAID_TYPES = ["vor", "ndb", "fix", "airport"];
 exports.eseParser = new ESEParser();
 //# sourceMappingURL=ese.js.map

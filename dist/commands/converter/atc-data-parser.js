@@ -9,31 +9,29 @@ const fs_1 = __importDefault(require("fs"));
 const ora_1 = __importDefault(require("ora"));
 const logger_1 = require("../../helper/logger");
 class AtcDataManager {
-    constructor() {
-        this.nestedProfilesRef = {};
-        this.positionsRef = {};
-        this.callsignToFacilityMap = {};
-        this.positionToIdentifierMap = {};
-        this.FACILITY_TYPE_MAP = {
-            OBS: 0,
-            FSS: 1,
-            DEL: 2,
-            GND: 3,
-            TWR: 4,
-            APP: 5,
-            CTR: 6,
-            ATIS: 7,
-        };
-        this.PATHS = {
-            loginProfiles: "euroscope_data/LoginProfiles.txt",
-            loginProfilesDir: "euroscope_data/LoginProfiles",
-            recatDefinition: "icao_data/recat.json",
-            icaoAircraft: "icao_data/ICAO_Aircraft.txt",
-            icaoAirlines: "icao_data/ICAO_Airlines.txt",
-            alias: "euroscope_data/Alias.txt",
-            output: "package/datasets/atc-data.json",
-        };
-    }
+    nestedProfilesRef = {};
+    positionsRef = {};
+    callsignToFacilityMap = {};
+    positionToIdentifierMap = {};
+    FACILITY_TYPE_MAP = {
+        OBS: 0,
+        FSS: 1,
+        DEL: 2,
+        GND: 3,
+        TWR: 4,
+        APP: 5,
+        CTR: 6,
+        ATIS: 7,
+    };
+    PATHS = {
+        loginProfiles: "euroscope_data/LoginProfiles.txt",
+        loginProfilesDir: "euroscope_data/LoginProfiles",
+        recatDefinition: "icao_data/recat.json",
+        icaoAircraft: "icao_data/ICAO_Aircraft.txt",
+        icaoAirlines: "icao_data/ICAO_Airlines.txt",
+        alias: "euroscope_data/Alias.txt",
+        output: "package/datasets/atc-data.json",
+    };
     async parseAtcdata(packageEnvironmentPath, eseProcessedData) {
         const spinner = (0, ora_1.default)("Parsing ATC data...").start();
         try {

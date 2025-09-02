@@ -3,10 +3,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.uuidManager = void 0;
 const utils_1 = require("../utils");
 class UUIDManager {
-    constructor() {
-        this.uuidMap = new Map();
-        this.typeMap = new Set();
-    }
+    uuidMap = new Map();
+    typeMap = new Set();
     getSharedUUID(type, name) {
         const formatted = `${type}-${name}`
             .toLowerCase()
