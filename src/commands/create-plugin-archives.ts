@@ -277,23 +277,25 @@ class PluginArchiver {
   }
 }
 
-export const createPluginArchives = async (buildDir: string, outputDir?: string, verbose: boolean = false) => {
+export const createPluginArchives = async (buildDir: string, confirmationRequired: boolean = true, outputDir?: string, verbose: boolean = false) => {
   console.log(`Creating plugin archives from: ${buildDir}`);
 
   const resolvedOutputDir = outputDir || path.join(path.dirname(buildDir), "plugins");
 
-  const confirm = await askForConfirmation(
-    `\n⚠️  CAUTION: This operation will:\n` +
-      `   • Create .plugin archive files in: ${resolvedOutputDir}\n` +
-      `   • Override existing .plugin files with the same names\n` +
-      `   • Compress plugin binaries using gzip compression\n` +
-      `\nInput directory: ${buildDir}\n` +
-      `Output directory: ${resolvedOutputDir}\n`
-  );
+  if (confirmationRequired) {
+    const confirm = await askForConfirmation(
+      `\n⚠️  CAUTION: This operation will:\n` +
+        `   • Create .plugin archive files in: ${resolvedOutputDir}\n` +
+        `   • Override existing .plugin files with the same names\n` +
+        `   • Compress plugin binaries using gzip compression\n` +
+        `\nInput directory: ${buildDir}\n` +
+        `Output directory: ${resolvedOutputDir}\n`
+    );
 
-  if (!confirm) {
-    console.log("Archive creation aborted by user.");
-    return;
+    if (!confirm) {
+      console.log("Archive creation aborted by user.");
+      return;
+    }
   }
 
   const spinner = ora("Scanning for plugin directories...").start();

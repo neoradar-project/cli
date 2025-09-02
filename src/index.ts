@@ -82,8 +82,9 @@ program
   .description("Create .plugin archive files from plugin build output")
   .option("-o, --output <dir>", "Output directory for .plugin files")
   .option("-v, --verbose", "Enable verbose output")
-  .action((buildDir: string, options: { output?: string; verbose?: boolean }) => {
-    createPluginArchives(buildDir, options.output, options.verbose || false);
+  .option("--no-confirmation", "Skip confirmation prompt")
+  .action((buildDir: string, options: { output?: string; verbose?: boolean; confirmation?: boolean }) => {
+    createPluginArchives(buildDir, options.confirmation !== false, options.output, options.verbose || false);
   });
 
 program.parse(process.argv);
