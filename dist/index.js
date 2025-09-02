@@ -20,7 +20,7 @@ program
     .command("version")
     .description("Displays the current version of the NeoRadar CLI")
     .action(() => {
-    console.log(`NeoRadar CLI version: ${version_json_1.default.version}`);
+    console.log(`NeoRadar CLI version: ${version_json_1.default.version} built at ${version_json_1.default.buildTime}`);
 });
 program
     .command("init")

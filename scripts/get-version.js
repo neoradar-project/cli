@@ -4,8 +4,7 @@ const packageJson = require('../package.json');
 
 const versionInfo = {
   version: packageJson.version,
-  buildTime: new Date().toISOString(),
-  gitCommit: process.env.GIT_COMMIT || 'unknown'
+  buildTime: new Date().toISOString()
 };
 
 fs.writeFileSync(
