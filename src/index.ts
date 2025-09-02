@@ -9,6 +9,7 @@ import { indexer } from "./commands/indexer";
 import { distributeCommand } from "./commands/distribute";
 import { convertTopsky } from "./commands/convert-topsky";
 import path from "path";
+import { createPluginArchives } from "./commands/create-plugin-archives";
 
 console.log(figlet.textSync("NeoRadar CLI"));
 
@@ -74,6 +75,15 @@ program
   .option("--keep-deploy", "Keep the deploy directory after publishing (useful for debugging)", false)
   .action((packagePath, options) => {
     distributeCommand(packagePath || process.cwd(), options.name, options.newVersion, options.indexing ? false : true, options.publish, options.keepDeploy);
+  });
+
+program
+  .command("create-plugin-archives <buildDir>")
+  .description("Create .plugin archive files from plugin build output")
+  .option("-o, --output <dir>", "Output directory for .plugin files")
+  .option("-v, --verbose", "Enable verbose output")
+  .action((buildDir: string, options: { output?: string; verbose?: boolean }) => {
+    createPluginArchives(buildDir, options.output, options.verbose || false);
   });
 
 program.parse(process.argv);
