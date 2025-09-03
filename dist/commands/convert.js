@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.convert = void 0;
+exports.convertSingleSCT = exports.convert = void 0;
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
 const utils_1 = require("../utils");
@@ -33,7 +33,7 @@ const convertSCT2AndESEFiles = async (sectorFilesPath, datasetsOutputPath) => {
         // Get ESE file path if available to pass to cliParseSCT
         if (eseFiles.length > 0) {
             eseFilePath = path_1.default.join(sectorFilesPath, eseFiles[0]);
-            await (0, sct_1.cliParseSCT)(sctSpinner, sctFilePath, eseFilePath, false, datasetsOutputPath);
+            await (0, sct_1.cliParseSCTESE)(sctSpinner, sctFilePath, eseFilePath, false, datasetsOutputPath);
             if (logger_1.sctParsingErrorCount > 0) {
                 sctSpinner.warn(`SCT2 parsing completed with ${logger_1.sctParsingErrorCount} errors. Check logs for details.`);
             }
@@ -178,4 +178,22 @@ const convert = async (packagePath) => {
     console.log(`Conversion completed for package environment at path: ${packagePath}`);
 };
 exports.convert = convert;
+const convertSingleSCT = async (sctFilePath, layerName) => {
+    console.log(`Starting conversion for SCT file at path: ${sctFilePath} with new layer name: ${layerName}`);
+    const confirm = await (0, utils_1.askForConfirmation)("\n⚠️  CAUTION: This operation will:\n" +
+        "   • Override existing geojson file with the same name as the specified layer name\n" +
+        "IT WILL ONLY:\n" +
+        "   • Create a single geojson file from the SCT file with the specified layer name\n" +
+        "IT WILL NOT:\n" +
+        "   • Remove or edit your manifest\n" +
+        "   • Change any systems, images or fonts\n");
+    if (!confirm) {
+        console.log("Conversion aborted by user.");
+        return;
+    }
+    const sctSpinner = (0, ora_1.default)("Starting conversion...").start();
+    await (0, sct_1.cliParseSingleSCT)(sctSpinner, sctFilePath, layerName);
+    // Perform the conversion logic here
+};
+exports.convertSingleSCT = convertSingleSCT;
 //# sourceMappingURL=convert.js.map

@@ -13,7 +13,10 @@ const indexer_1 = require("./commands/indexer");
 const distribute_1 = require("./commands/distribute");
 const convert_topsky_1 = require("./commands/convert-topsky");
 const path_1 = __importDefault(require("path"));
-console.log(figlet_1.default.textSync("NeoRadar CLI", { font: "Colossal" }));
+const fun_1 = require("./helper/fun");
+console.log(figlet_1.default.textSync("NeoRadar CLI", {
+    font: (0, fun_1.isHalloweenWeek)() ? "Ghost" : "Standard",
+}));
 const program = new commander_1.Command();
 program
     .version(`${version_json_1.default.version} built at ${version_json_1.default.buildTime}`)
@@ -33,9 +36,16 @@ program
 program
     .command("convert")
     .description("Converts an SCT2 and ESE (if available) as well as EuroScope config files to the neoradar format")
-    .argument("<string>", "Path to the package environment or built package, defaults to current directory")
-    .action((packagePath) => {
-    (0, convert_1.convert)(packagePath || process.cwd());
+    .argument("<string>", "Path to the package environment or built package, or SCT file, defaults to current directory")
+    .option("--only-sct <string>", "Parse only an SCT file, and not parsing ESE or other EuroScope files", false)
+    .option("--layer-name <string>", "Output layer file name for the converted data if using --only-sct")
+    .action((packagePath, options) => {
+    if (options.onlySct) {
+        (0, convert_1.convertSingleSCT)(packagePath || process.cwd(), options.layerName);
+    }
+    else {
+        (0, convert_1.convert)(packagePath || process.cwd());
+    }
 });
 program
     .command("topsky-convert")

@@ -97,14 +97,14 @@ export function getFeatureName(feature: GeoJSON.Feature<any>): string | null {
   return null;
 }
 
-export async function generateGeoJsonFilesForType(path: string, type: string, allFeatures: any[]) {
+export async function generateGeoJsonFilesForType(path: string, fileOrTypeName: string, allFeatures: any[]) {
   const features = allFeatures;
   const geojson = {
     type: "FeatureCollection",
     features: features,
   };
   const data = JSON.stringify(geojson);
-  const formattedType = type.replace(/-([a-z])/g, (match, letter) => letter.toUpperCase());
+  const formattedType = fileOrTypeName.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
   const filePath = `${path}/${formattedType}.geojson`;
   fs.writeFileSync(filePath, data, "utf8");
 }
@@ -157,7 +157,7 @@ export const askForConfirmation = (message: string): Promise<boolean> => {
   });
 
   return new Promise<boolean>((resolve) => {
-    rl.question("Do you want to continue? (Y/N): ", (answer: string) => {
+    rl.question("Do you want to continue? Y(es)/n(o): ", (answer: string) => {
       rl.close();
       resolve(answer.toLowerCase() === "y" || answer.toLowerCase() === "yes");
     });

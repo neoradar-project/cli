@@ -4,11 +4,12 @@ import { Command } from "commander";
 import versionInfo from "./version.json";
 
 import { initPackage } from "./commands/init-package";
-import { convert } from "./commands/convert";
+import { convert, convertSingleSCT } from "./commands/convert";
 import { indexer } from "./commands/indexer";
 import { distributeCommand } from "./commands/distribute";
 import { convertTopsky } from "./commands/convert-topsky";
 import path from "path";
+import { isHalloweenWeek } from "./helper/fun";
 
 console.log(
   figlet.textSync("NeoRadar CLI", {
@@ -57,10 +58,23 @@ program
   )
   .argument(
     "<string>",
-    "Path to the package environment or built package, defaults to current directory"
+    "Path to the package environment or built package, or SCT file, defaults to current directory"
   )
-  .action((packagePath) => {
-    convert(packagePath || process.cwd());
+  .option(
+    "--only-sct <string>",
+    "Parse only an SCT file, and not parsing ESE or other EuroScope files",
+    false
+  )
+  .option(
+    "--layer-name <string>",
+    "Output layer file name for the converted data if using --only-sct"
+  )
+  .action((packagePath, options) => {
+    if (options.onlySct) {
+      convertSingleSCT(packagePath || process.cwd(), options.layerName);
+    } else {
+      convert(packagePath || process.cwd());
+    }
   });
 
 program

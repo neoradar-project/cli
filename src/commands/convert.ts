@@ -1,13 +1,12 @@
 import fs from "fs";
 import path from "path";
-import { askForConfirmation, fileFilesWithExtension } from "../utils";
+import { askForConfirmation, fileFilesWithExtension as findFilesWithExtension } from "../utils";
 import ora from "ora";
-import { cliParseSCT } from "./converter/sct";
+import { cliParseSCTESE, cliParseSingleSCT } from "./converter/sct";
 import { indexer } from "./indexer";
 import { eseParser } from "./converter/ese";
 import { parseConfig } from "../helper/config";
 import { eseParsingErrorCount, sctParsingErrorCount } from "../helper/logger";
-import readline from "readline";
 import { atcData } from "./converter/atc-data-parser";
 import AsrFolderConverter from "./converter/asr";
 
@@ -15,10 +14,10 @@ const convertSCT2AndESEFiles = async (sectorFilesPath: string, datasetsOutputPat
   const sctSpinner = ora("Finding SCT2...").start();
 
   // Find SCT2 files
-  const sctFiles = fileFilesWithExtension(sectorFilesPath, [".sct", ".sct2"]);
+  const sctFiles = findFilesWithExtension(sectorFilesPath, [".sct", ".sct2"]);
 
   // Find ESE files
-  const eseFiles = fileFilesWithExtension(sectorFilesPath, [".ese"]);
+  const eseFiles = findFilesWithExtension(sectorFilesPath, [".ese"]);
 
   let sctFilePath: string | undefined;
   let eseFilePath: string | undefined;
@@ -33,7 +32,7 @@ const convertSCT2AndESEFiles = async (sectorFilesPath: string, datasetsOutputPat
     // Get ESE file path if available to pass to cliParseSCT
     if (eseFiles.length > 0) {
       eseFilePath = path.join(sectorFilesPath, eseFiles[0]);
-      await cliParseSCT(sctSpinner, sctFilePath, eseFilePath, false, datasetsOutputPath);
+      await cliParseSCTESE(sctSpinner, sctFilePath, eseFilePath, false, datasetsOutputPath);
 
       if (sctParsingErrorCount > 0) {
         sctSpinner.warn(`SCT2 parsing completed with ${sctParsingErrorCount} errors. Check logs for details.`);
@@ -197,3 +196,27 @@ export const convert = async (packagePath: string) => {
 
   console.log(`Conversion completed for package environment at path: ${packagePath}`);
 };
+
+export const convertSingleSCT = async (sctFilePath: string, layerName: string) => {
+  console.log(`Starting conversion for SCT file at path: ${sctFilePath} with new layer name: ${layerName}`);
+
+  const confirm = await askForConfirmation(
+    "\n⚠️  CAUTION: This operation will:\n" +
+    "   • Override existing geojson file with the same name as the specified layer name\n" +
+    "IT WILL ONLY:\n" +
+    "   • Create a single geojson file from the SCT file with the specified layer name\n" +
+    "IT WILL NOT:\n" +
+    "   • Remove or edit your manifest\n" +
+    "   • Change any systems, images or fonts\n"
+  );
+
+  if (!confirm) {
+    console.log("Conversion aborted by user.");
+    return;
+  }
+
+  const sctSpinner = ora("Starting conversion...").start();
+  await cliParseSingleSCT(sctSpinner, sctFilePath, layerName);
+
+  // Perform the conversion logic here
+}

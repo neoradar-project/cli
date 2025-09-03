@@ -90,14 +90,14 @@ function getFeatureName(feature) {
     }
     return null;
 }
-async function generateGeoJsonFilesForType(path, type, allFeatures) {
+async function generateGeoJsonFilesForType(path, fileOrTypeName, allFeatures) {
     const features = allFeatures;
     const geojson = {
         type: "FeatureCollection",
         features: features,
     };
     const data = JSON.stringify(geojson);
-    const formattedType = type.replace(/-([a-z])/g, (match, letter) => letter.toUpperCase());
+    const formattedType = fileOrTypeName.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
     const filePath = `${path}/${formattedType}.geojson`;
     fs_1.default.writeFileSync(filePath, data, "utf8");
 }
@@ -146,7 +146,7 @@ const askForConfirmation = (message) => {
         output: process.stdout,
     });
     return new Promise((resolve) => {
-        rl.question("Do you want to continue? (Y/N): ", (answer) => {
+        rl.question("Do you want to continue? Y(es)/n(o): ", (answer) => {
             rl.close();
             resolve(answer.toLowerCase() === "y" || answer.toLowerCase() === "yes");
         });
