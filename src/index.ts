@@ -10,6 +10,7 @@ import { distributeCommand } from "./commands/distribute";
 import { convertTopsky } from "./commands/convert-topsky";
 import path from "path";
 import { isHalloweenWeek } from "./helper/fun";
+import { createPluginArchives } from "./commands/create-plugin-archives";
 
 console.log(
   figlet.textSync("NeoRadar CLI", {
@@ -140,6 +141,16 @@ program
       options.publish,
       options.keepDeploy
     );
+  });
+
+program
+  .command("create-plugin-archives <buildDir>")
+  .description("Create .plugin archive files from plugin build output")
+  .option("-o, --output <dir>", "Output directory for .plugin files")
+  .option("-v, --verbose", "Enable verbose output")
+  .option("--no-confirmation", "Skip confirmation prompt")
+  .action((buildDir: string, options: { output?: string; verbose?: boolean; confirmation?: boolean }) => {
+    createPluginArchives(buildDir, options.confirmation !== false, options.output, options.verbose || false);
   });
 
 program.parse(process.argv);
