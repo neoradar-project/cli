@@ -7,37 +7,6 @@ import { askForConfirmation } from "../utils";
 
 const gzip = promisify(zlib.gzip);
 
-interface PluginBinary {
-  filename: string;
-  platform: string;
-  architecture: string;
-  data: Buffer;
-  originalSize: number;
-  compressedSize: number;
-}
-
-interface PluginMetadata {
-  name: string;
-  version: string;
-  author: string;
-  description: string;
-  license: string;
-}
-
-interface PluginArchiveData {
-  version: number;
-  metadata: PluginMetadata;
-  binaries: Record<
-    string,
-    {
-      originalSize: number;
-      compressedSize: number;
-      data: string;
-      compressed: boolean;
-    }
-  >;
-}
-
 class PluginArchiver {
   private static readonly PLATFORM_EXTENSIONS = {
     ".dll": "windows",
@@ -110,50 +79,15 @@ class PluginArchiver {
     const ext = path.extname(filename);
     const nameWithoutExt = path.basename(filename, ext);
 
-    // Determine platform from extension
     const platform = PluginArchiver.PLATFORM_EXTENSIONS[ext.toLowerCase() as keyof typeof PluginArchiver.PLATFORM_EXTENSIONS];
     if (!platform) {
       return { platform: "", architecture: "" };
     }
 
-    // Parse architecture
     const dashIndex = nameWithoutExt.indexOf("-");
     const architecture = dashIndex !== -1 ? nameWithoutExt.substring(dashIndex + 1) : "universal"; // Legacy format
 
     return { platform, architecture };
-  }
-
-  private loadMetadata(pluginDir: string, pluginName: string): PluginMetadata {
-    const metadataPath = path.join(pluginDir, "plugin.json");
-
-    const defaultMetadata: PluginMetadata = {
-      name: pluginName,
-      version: "1.0.0",
-      author: "Unknown",
-      description: `${pluginName} plugin`,
-      license: "Proprietary",
-    };
-
-    if (fs.existsSync(metadataPath)) {
-      try {
-        const content = fs.readFileSync(metadataPath, "utf-8");
-        const metadata = JSON.parse(content);
-
-        return {
-          name: metadata.name || pluginName,
-          version: metadata.version || defaultMetadata.version,
-          author: metadata.author || defaultMetadata.author,
-          description: metadata.description || defaultMetadata.description,
-          license: metadata.license || defaultMetadata.license,
-        };
-      } catch (error) {
-        if (this.verbose) {
-          console.warn(`Warning: Failed to load metadata from ${metadataPath}: ${error instanceof Error ? error.message : "Unknown error"}`);
-        }
-      }
-    }
-
-    return defaultMetadata;
   }
 
   private async createSingleArchive(pluginName: string, pluginDir: string, outputDir: string, spinner: Ora): Promise<void> {
@@ -162,7 +96,10 @@ class PluginArchiver {
     }
 
     // Load metadata
-    const metadata = this.loadMetadata(pluginDir, pluginName);
+    const metadata: PluginMetadata = {
+      name: pluginName,
+      created: new Date().toISOString(),
+    };
 
     // Scan for binary files
     const binaries = await this.scanBinaries(pluginDir);
@@ -173,11 +110,7 @@ class PluginArchiver {
 
     // Create archive structure
     const archiveData: PluginArchiveData = {
-      version: 1,
-      metadata: {
-        ...metadata,
-        created: new Date().toISOString(),
-      } as any,
+      metadata,
       binaries: {},
     };
 
@@ -217,7 +150,7 @@ class PluginArchiver {
     }
 
     // Write archive file
-    const archivePath = path.join(outputDir, `${pluginName}.plugin`);
+    const archivePath = path.join(outputDir, `${pluginName}.nrplugin`);
     fs.writeFileSync(archivePath, JSON.stringify(archiveData, null, 2));
 
     // Summary
@@ -228,7 +161,7 @@ class PluginArchiver {
       console.log(`Overall compression: ${totalOriginal.toLocaleString()} → ${totalCompressed.toLocaleString()} bytes (${overallRatio.toFixed(1)}% smaller)`);
     }
 
-    spinner.info(`Created ${pluginName}.plugin - ${binaries.length} binaries, ${overallRatio.toFixed(1)}% compression`);
+    spinner.info(`Created ${pluginName}.nrplugin - ${binaries.length} binaries, ${overallRatio.toFixed(1)}% compression`);
   }
 
   async createArchives(buildDir: string, outputDir: string, verbose: boolean = false): Promise<number> {
@@ -260,7 +193,7 @@ class PluginArchiver {
           try {
             await this.createSingleArchive(pluginName, pluginDir, outputDir, spinner);
             archivesCreated++;
-            spinner.succeed(`${pluginName}.plugin created successfully`);
+            spinner.succeed(`${pluginName}.nrplugin created successfully`);
           } catch (error) {
             spinner.fail(`Failed to create archive for ${pluginName}: ${error instanceof Error ? error.message : "Unknown error"}`);
             if (this.verbose) {
@@ -285,8 +218,8 @@ export const createPluginArchives = async (buildDir: string, confirmationRequire
   if (confirmationRequired) {
     const confirm = await askForConfirmation(
       `\n⚠️  CAUTION: This operation will:\n` +
-        `   • Create .plugin archive files in: ${resolvedOutputDir}\n` +
-        `   • Override existing .plugin files with the same names\n` +
+        `   • Create .nrplugin archive files in: ${resolvedOutputDir}\n` +
+        `   • Override existing .nrplugin files with the same names\n` +
         `   • Compress plugin binaries using gzip compression\n` +
         `\nInput directory: ${buildDir}\n` +
         `Output directory: ${resolvedOutputDir}\n`
@@ -315,7 +248,7 @@ export const createPluginArchives = async (buildDir: string, confirmationRequire
     try {
       const archiveFiles = fs
         .readdirSync(resolvedOutputDir)
-        .filter((file) => file.endsWith(".plugin"))
+        .filter((file) => file.endsWith(".nrplugin"))
         .map((file) => {
           const filePath = path.join(resolvedOutputDir, file);
           const stats = fs.statSync(filePath);
@@ -332,7 +265,7 @@ export const createPluginArchives = async (buildDir: string, confirmationRequire
     }
 
     console.log(`\nPlugin archives ready for distribution!`);
-    console.log(`Place the .plugin files in your application's plugins directory.`);
+    console.log(`Place the .nrplugin files in your application's plugins directory.`);
   } catch (error) {
     spinner.fail(`Archive creation failed: ${error instanceof Error ? error.message : "Unknown error"}`);
     if (verbose) {
