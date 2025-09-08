@@ -48,6 +48,7 @@
     "coordinate-parser": "^1.0.7",
     "dms-conversion": "^3.1.4",
     "figlet": "^1.8.1",
+    "free-tex-packer-core": "^0.3.5",
     "ky": "^1.8.1",
     "ora": "^8.2.0",
     "sector-file-tools": "github:neoradar-project/sector-file-tools#v1.2.4",

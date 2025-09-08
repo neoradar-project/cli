@@ -14,6 +14,8 @@ const distribute_1 = require("./commands/distribute");
 const convert_topsky_1 = require("./commands/convert-topsky");
 const path_1 = __importDefault(require("path"));
 const fun_1 = require("./helper/fun");
+const create_plugin_archives_1 = require("./commands/create-plugin-archives");
+const atlas_generator_1 = require("./commands/atlas-generator");
 console.log(figlet_1.default.textSync("NeoRadar CLI", {
     font: (0, fun_1.isHalloweenWeek)() ? "Ghost" : "Standard",
 }));
@@ -73,6 +75,22 @@ program
     .option("--keep-deploy", "Keep the deploy directory after publishing (useful for debugging)", false)
     .action((packagePath, options) => {
     (0, distribute_1.distributeCommand)(packagePath || process.cwd(), options.name, options.newVersion, options.indexing ? false : true, options.publish, options.keepDeploy);
+});
+program
+    .command("create-plugin-archives <buildDir>")
+    .description("Create .plugin archive files from plugin build output")
+    .option("-o, --output <dir>", "Output directory for .plugin files")
+    .option("-v, --verbose", "Enable verbose output")
+    .option("--no-confirmation", "Skip confirmation prompt")
+    .action((buildDir, options) => {
+    (0, create_plugin_archives_1.createPluginArchives)(buildDir, options.confirmation !== false, options.output, options.verbose || false);
+});
+program
+    .command("generate-atlas <inputFolder>")
+    .description("Generate texture atlas from PNG files in a folder")
+    .option("-o, --output <dir>", "Output directory for atlas files (defaults to input folder/atlas)")
+    .action((inputFolder, options) => {
+    (0, atlas_generator_1.generateAtlas)(inputFolder, options.output);
 });
 program.parse(process.argv);
 if (!process.argv.slice(2).length) {

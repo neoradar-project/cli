@@ -135,3 +135,4 @@ out
 .pnp.*
 
 *.js.map
+dist

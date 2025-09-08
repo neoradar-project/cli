@@ -9,6 +9,7 @@ import { parseConfig } from "../helper/config";
 import { eseParsingErrorCount, sctParsingErrorCount } from "../helper/logger";
 import { atcData } from "./converter/atc-data-parser";
 import AsrFolderConverter from "./converter/asr";
+import { generateAtlas } from "./atlas-generator";
 
 const convertSCT2AndESEFiles = async (sectorFilesPath: string, datasetsOutputPath: string) => {
   const sctSpinner = ora("Finding SCT2...").start();
@@ -160,6 +161,68 @@ const convertASRFolder = async (packagePath: string) => {
   }
 };
 
+const convertAtlasFolder = async (packagePath: string) => {
+  const spinner = ora("Finding Symbols folder...").start();
+
+  const symbolsPath = path.join(packagePath, "symbols");
+  const imagesOutputPath = path.join(packagePath, "package", "images");
+
+  if (!fs.existsSync(symbolsPath)) {
+    spinner.info("No Symbols directory found, skipping atlas generation.");
+    return;
+  }
+
+  const hasPngFiles = (dirPath: string): boolean => {
+    try {
+      const items = fs.readdirSync(dirPath);
+      for (const item of items) {
+        const fullPath = path.join(dirPath, item);
+        const stat = fs.statSync(fullPath);
+        if (stat.isDirectory()) {
+          if (hasPngFiles(fullPath)) return true;
+        } else if (stat.isFile() && item.toLowerCase().endsWith(".png")) {
+          return true;
+        }
+      }
+      return false;
+    } catch (error) {
+      return false;
+    }
+  };
+
+  if (!hasPngFiles(symbolsPath)) {
+    spinner.info("No PNG files found in Symbols directory, skipping atlas generation.");
+    return;
+  }
+
+  try {
+    spinner.text = "Generating texture atlas from PNG files...";
+
+    // Create output directory if it doesn't exist
+    if (!fs.existsSync(imagesOutputPath)) {
+      fs.mkdirSync(imagesOutputPath, { recursive: true });
+    }
+
+    // Clear existing atlas files
+    if (fs.existsSync(imagesOutputPath)) {
+      const existingFiles = fs.readdirSync(imagesOutputPath);
+      for (const file of existingFiles) {
+        const filePath = path.join(imagesOutputPath, file);
+        const stat = fs.statSync(filePath);
+        if (stat.isFile()) {
+          fs.unlinkSync(filePath);
+        }
+      }
+    }
+
+    await generateAtlas(symbolsPath, imagesOutputPath);
+    spinner.succeed("Atlas generation completed successfully.");
+  } catch (error) {
+    spinner.fail("Atlas generation failed.");
+    console.error("Atlas generation failed:", error);
+  }
+};
+
 export const convert = async (packagePath: string) => {
   console.log(`Starting conversion for package environment at path: ${packagePath}`);
 
@@ -167,6 +230,7 @@ export const convert = async (packagePath: string) => {
     "\n⚠️  CAUTION: This operation will:\n" +
       "   • Override existing geojson datasets with the same names\n" +
       "   • Override fields that require update in the NSE\n" +
+      "   • Override existing package symbol data\n" +
       "   • Override the atc-data file\n" +
       "   • Override existing STP profiles\n" +
       "   • Add missing layers to the manifest\n" +
@@ -189,6 +253,7 @@ export const convert = async (packagePath: string) => {
 
   const parsedESE = await convertSCT2AndESEFiles(sectorFilesPath, datasetsOutputPath);
   await convertASRFolder(packagePath);
+  await convertAtlasFolder(packagePath);
   await atcData.parseAtcdata(packagePath, parsedESE);
 
   // Running the indexer after conversion
@@ -202,12 +267,12 @@ export const convertSingleSCT = async (sctFilePath: string, layerName: string) =
 
   const confirm = await askForConfirmation(
     "\n⚠️  CAUTION: This operation will:\n" +
-    "   • Override existing geojson file with the same name as the specified layer name\n" +
-    "IT WILL ONLY:\n" +
-    "   • Create a single geojson file from the SCT file with the specified layer name\n" +
-    "IT WILL NOT:\n" +
-    "   • Remove or edit your manifest\n" +
-    "   • Change any systems, images or fonts\n"
+      "   • Override existing geojson file with the same name as the specified layer name\n" +
+      "IT WILL ONLY:\n" +
+      "   • Create a single geojson file from the SCT file with the specified layer name\n" +
+      "IT WILL NOT:\n" +
+      "   • Remove or edit your manifest\n" +
+      "   • Change any systems, images or fonts\n"
   );
 
   if (!confirm) {
@@ -219,4 +284,4 @@ export const convertSingleSCT = async (sctFilePath: string, layerName: string) =
   await cliParseSingleSCT(sctSpinner, sctFilePath, layerName);
 
   // Perform the conversion logic here
-}
+};

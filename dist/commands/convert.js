@@ -15,6 +15,7 @@ const config_1 = require("../helper/config");
 const logger_1 = require("../helper/logger");
 const atc_data_parser_1 = require("./converter/atc-data-parser");
 const asr_1 = __importDefault(require("./converter/asr"));
+const atlas_generator_1 = require("./atlas-generator");
 const convertSCT2AndESEFiles = async (sectorFilesPath, datasetsOutputPath) => {
     const sctSpinner = (0, ora_1.default)("Finding SCT2...").start();
     // Find SCT2 files
@@ -149,6 +150,63 @@ const convertASRFolder = async (packagePath) => {
         console.error("ASR conversion failed:", error);
     }
 };
+const convertAtlasFolder = async (packagePath) => {
+    const spinner = (0, ora_1.default)("Finding Symbols folder...").start();
+    const symbolsPath = path_1.default.join(packagePath, "symbols");
+    const imagesOutputPath = path_1.default.join(packagePath, "package", "images");
+    if (!fs_1.default.existsSync(symbolsPath)) {
+        spinner.info("No Symbols directory found, skipping atlas generation.");
+        return;
+    }
+    const hasPngFiles = (dirPath) => {
+        try {
+            const items = fs_1.default.readdirSync(dirPath);
+            for (const item of items) {
+                const fullPath = path_1.default.join(dirPath, item);
+                const stat = fs_1.default.statSync(fullPath);
+                if (stat.isDirectory()) {
+                    if (hasPngFiles(fullPath))
+                        return true;
+                }
+                else if (stat.isFile() && item.toLowerCase().endsWith(".png")) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        catch (error) {
+            return false;
+        }
+    };
+    if (!hasPngFiles(symbolsPath)) {
+        spinner.info("No PNG files found in Symbols directory, skipping atlas generation.");
+        return;
+    }
+    try {
+        spinner.text = "Generating texture atlas from PNG files...";
+        // Create output directory if it doesn't exist
+        if (!fs_1.default.existsSync(imagesOutputPath)) {
+            fs_1.default.mkdirSync(imagesOutputPath, { recursive: true });
+        }
+        // Clear existing atlas files
+        if (fs_1.default.existsSync(imagesOutputPath)) {
+            const existingFiles = fs_1.default.readdirSync(imagesOutputPath);
+            for (const file of existingFiles) {
+                const filePath = path_1.default.join(imagesOutputPath, file);
+                const stat = fs_1.default.statSync(filePath);
+                if (stat.isFile()) {
+                    fs_1.default.unlinkSync(filePath);
+                }
+            }
+        }
+        await (0, atlas_generator_1.generateAtlas)(symbolsPath, imagesOutputPath);
+        spinner.succeed("Atlas generation completed successfully.");
+    }
+    catch (error) {
+        spinner.fail("Atlas generation failed.");
+        console.error("Atlas generation failed:", error);
+    }
+};
 const convert = async (packagePath) => {
     console.log(`Starting conversion for package environment at path: ${packagePath}`);
     const confirm = await (0, utils_1.askForConfirmation)("\n⚠️  CAUTION: This operation will:\n" +
@@ -172,6 +230,7 @@ const convert = async (packagePath) => {
     const datasetsOutputPath = `${packagePath}/package/datasets`;
     const parsedESE = await convertSCT2AndESEFiles(sectorFilesPath, datasetsOutputPath);
     await convertASRFolder(packagePath);
+    await convertAtlasFolder(packagePath);
     await atc_data_parser_1.atcData.parseAtcdata(packagePath, parsedESE);
     // Running the indexer after conversion
     await (0, indexer_1.indexer)(packagePath, `${datasetsOutputPath}/nse.json`, true);

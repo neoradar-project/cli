@@ -11,6 +11,7 @@ import { convertTopsky } from "./commands/convert-topsky";
 import path from "path";
 import { isHalloweenWeek } from "./helper/fun";
 import { createPluginArchives } from "./commands/create-plugin-archives";
+import { generateAtlas } from "./commands/atlas-generator";
 
 console.log(
   figlet.textSync("NeoRadar CLI", {
@@ -19,22 +20,13 @@ console.log(
 );
 
 const program = new Command();
-program
-  .version(`${versionInfo.version} built at ${versionInfo.buildTime}`)
-  .description(
-    "CLI Tool for neoradar for packaging and releasing sector files"
-  );
+program.version(`${versionInfo.version} built at ${versionInfo.buildTime}`).description("CLI Tool for neoradar for packaging and releasing sector files");
 
 program
   .command("init")
-  .description(
-    "Initializes a new package environment in the given folder and output directory"
-  )
+  .description("Initializes a new package environment in the given folder and output directory")
   .argument("<string>", "Path/folder in which to initialize the package")
-  .option(
-    "-n, --name <string>",
-    "Name of the package, defaults to the directory name"
-  )
+  .option("-n, --name <string>", "Name of the package, defaults to the directory name")
   .option("--lat, --latitude <number>", "Reference latitude for the package")
   .option("--lon, --longitude <number>", "Reference longitude for the package")
   .option(
@@ -43,33 +35,15 @@ program
   )
   .action((folder, options) => {
     const packageName = options.name || path.basename(path.resolve(folder));
-    initPackage(
-      folder,
-      packageName,
-      options.latitude,
-      options.longitude,
-      options.namespace
-    );
+    initPackage(folder, packageName, options.latitude, options.longitude, options.namespace);
   });
 
 program
   .command("convert")
-  .description(
-    "Converts an SCT2 and ESE (if available) as well as EuroScope config files to the neoradar format"
-  )
-  .argument(
-    "<string>",
-    "Path to the package environment or built package, or SCT file, defaults to current directory"
-  )
-  .option(
-    "--only-sct <string>",
-    "Parse only an SCT file, and not parsing ESE or other EuroScope files",
-    false
-  )
-  .option(
-    "--layer-name <string>",
-    "Output layer file name for the converted data if using --only-sct"
-  )
+  .description("Converts an SCT2 and ESE (if available) as well as EuroScope config files to the neoradar format")
+  .argument("<string>", "Path to the package environment or built package, or SCT file, defaults to current directory")
+  .option("--only-sct <string>", "Parse only an SCT file, and not parsing ESE or other EuroScope files", false)
+  .option("--layer-name <string>", "Output layer file name for the converted data if using --only-sct")
   .action((packagePath, options) => {
     if (options.onlySct) {
       convertSingleSCT(packagePath || process.cwd(), options.layerName);
@@ -81,27 +55,16 @@ program
 program
   .command("topsky-convert")
   .description("Converts TopSky map files to the neoradar format")
-  .argument(
-    "<string>",
-    "Path to the package environment or built package, defaults to current directory"
-  )
+  .argument("<string>", "Path to the package environment or built package, defaults to current directory")
   .action((packagePath) => {
     convertTopsky(packagePath || process.cwd());
   });
 
 program
   .command("index")
-  .description(
-    "Indexes GeoJSON features names and IDs in the specified directory and writes them to nse.json if present as well as updating the manifest.json"
-  )
-  .argument(
-    "<string>",
-    "Directory of the package environment or built package, defaults to current directory"
-  )
-  .option(
-    "-o, --output [string]",
-    "Output file for the index, defaults to nse.json in the package/datasets directory"
-  )
+  .description("Indexes GeoJSON features names and IDs in the specified directory and writes them to nse.json if present as well as updating the manifest.json")
+  .argument("<string>", "Directory of the package environment or built package, defaults to current directory")
+  .option("-o, --output [string]", "Output file for the index, defaults to nse.json in the package/datasets directory")
   .action((packagePath, options) => {
     indexer(packagePath || process.cwd(), options.output);
   });
@@ -109,38 +72,14 @@ program
 program
   .command("distribute")
   .description("Prepares the package for distribution by creating a zip file")
-  .argument(
-    "<string>",
-    "Path to the package environment or built package, defaults to current directory"
-  )
-  .option(
-    "-n, --name <string>",
-    "New package name for the distribution, defaults to the current package name"
-  )
-  .option(
-    "--nv, --new-version <string>",
-    "New version for the distribution, defaults to the current package version"
-  )
+  .argument("<string>", "Path to the package environment or built package, defaults to current directory")
+  .option("-n, --name <string>", "New package name for the distribution, defaults to the current package name")
+  .option("--nv, --new-version <string>", "New version for the distribution, defaults to the current package version")
   .option("--no-indexing", "Skips the indexing step, defaults to false")
-  .option(
-    "-p, --publish",
-    "Publishes the package using the publish configuration inside config.json",
-    false
-  )
-  .option(
-    "--keep-deploy",
-    "Keep the deploy directory after publishing (useful for debugging)",
-    false
-  )
+  .option("-p, --publish", "Publishes the package using the publish configuration inside config.json", false)
+  .option("--keep-deploy", "Keep the deploy directory after publishing (useful for debugging)", false)
   .action((packagePath, options) => {
-    distributeCommand(
-      packagePath || process.cwd(),
-      options.name,
-      options.newVersion,
-      options.indexing ? false : true,
-      options.publish,
-      options.keepDeploy
-    );
+    distributeCommand(packagePath || process.cwd(), options.name, options.newVersion, options.indexing ? false : true, options.publish, options.keepDeploy);
   });
 
 program
@@ -151,6 +90,14 @@ program
   .option("--no-confirmation", "Skip confirmation prompt")
   .action((buildDir: string, options: { output?: string; verbose?: boolean; confirmation?: boolean }) => {
     createPluginArchives(buildDir, options.confirmation !== false, options.output, options.verbose || false);
+  });
+
+program
+  .command("generate-atlas <inputFolder>")
+  .description("Generate texture atlas from PNG files in a folder")
+  .option("-o, --output <dir>", "Output directory for atlas files (defaults to input folder/atlas)")
+  .action((inputFolder: string, options: { output?: string }) => {
+    generateAtlas(inputFolder, options.output);
   });
 
 program.parse(process.argv);
