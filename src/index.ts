@@ -93,8 +93,8 @@ program
   });
 
 program
-  .command("generate-atlas <inputFolder>")
-  .description("Generate texture atlas from PNG files in a folder")
+  .command("generate-symbols <inputFolder>")
+  .description("Generate symbol texture atlas from PNG files in a folder")
   .option("-o, --output <dir>", "Output directory for atlas files (defaults to input folder/atlas)")
   .action((inputFolder: string, options: { output?: string }) => {
     generateAtlas(inputFolder, options.output);
