@@ -7,10 +7,7 @@ export class GeoHelper {
   /**
    * Converts ESE geo coordinates to Cartesian coordinates using Mercator projection
    */
-  public convertESEGeoCoordinatesToCartesian(
-    latStr: string,
-    lonStr: string
-  ): [number, number] | null {
+  public convertESEGeoCoordinatesToCartesian(latStr: string, lonStr: string): [number, number] | null {
     if (!this.isValidInput(latStr, lonStr)) {
       return null;
     }
@@ -19,13 +16,13 @@ export class GeoHelper {
       const reformattedLat = this.reformatCoordinates(latStr);
       const reformattedLon = this.reformatCoordinates(lonStr);
       const coordinates = new Coordinates(`${reformattedLat} ${reformattedLon}`);
-      
+
       return toMercator([coordinates.getLongitude(), coordinates.getLatitude()]);
     } catch (error) {
       logESEParsingError(
-        'Failed to convert ESE coordinates to Cartesian',
+        "Failed to convert ESE coordinates to Cartesian",
         `Lat: ${latStr}, Lon: ${lonStr}`,
-        error instanceof Error ? error.message : 'Unknown error'
+        error instanceof Error ? error.message : "Unknown error"
       );
       return null;
     }
@@ -34,10 +31,7 @@ export class GeoHelper {
   /**
    * Converts ESE geo coordinates to decimal degrees
    */
-  public convertESEGeoCoordinates(
-    latStr: string,
-    lonStr: string
-  ): { lat: number; lon: number } | null {
+  public convertESEGeoCoordinates(latStr: string, lonStr: string): { lat: number; lon: number } | null {
     if (!this.isValidInput(latStr, lonStr)) {
       return null;
     }
@@ -46,16 +40,16 @@ export class GeoHelper {
       const reformattedLat = this.reformatCoordinates(latStr);
       const reformattedLon = this.reformatCoordinates(lonStr);
       const coordinates = new Coordinates(`${reformattedLat} ${reformattedLon}`);
-      
-      return { 
-        lat: coordinates.getLatitude(), 
-        lon: coordinates.getLongitude() 
+
+      return {
+        lat: coordinates.getLatitude(),
+        lon: coordinates.getLongitude(),
       };
     } catch (error) {
       logESEParsingError(
-        'Failed to convert ESE coordinates to decimal degrees',
+        "Failed to convert ESE coordinates to decimal degrees",
         `Lat: ${latStr}, Lon: ${lonStr}`,
-        error instanceof Error ? error.message : 'Unknown error'
+        error instanceof Error ? error.message : "Unknown error"
       );
       return null;
     }
@@ -75,19 +69,19 @@ export class GeoHelper {
     try {
       const dmsConverter = new DmsCoordinates(lat, lon);
       const { longitude, latitude } = dmsConverter.dmsArrays;
-      
+
       const [lonDeg, lonMin, lonSec, lonDir] = longitude;
       const [latDeg, latMin, latSec, latDir] = latitude;
-      
+
       const formattedLon = `${lonDir}${this.formatESEDegrees(lonDeg)}.${this.formatESEMin(lonMin)}.${this.formatESESec(lonSec)}`;
       const formattedLat = `${latDir}${this.formatESEDegrees(latDeg)}.${this.formatESEMin(latMin)}.${this.formatESESec(latSec)}`;
-      
+
       return `${formattedLat}:${formattedLon}`;
     } catch (error) {
       logESEParsingError(
-        'Failed to convert decimal coordinates to ESE format',
+        "Failed to convert decimal coordinates to ESE format",
         `Lat: ${latStr}, Lon: ${lonStr}`,
-        error instanceof Error ? error.message : 'Unknown error'
+        error instanceof Error ? error.message : "Unknown error"
       );
       return null;
     }
@@ -104,36 +98,33 @@ export class GeoHelper {
    * Validates decimal coordinates are within valid ranges
    */
   private isValidDecimalCoordinates(lat: number, lon: number): boolean {
-    return !isNaN(lat) && 
-           !isNaN(lon) && 
-           lat >= -90 && 
-           lat <= 90 && 
-           lon >= -180 && 
-           lon <= 180;
+    return !isNaN(lat) && !isNaN(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180;
   }
 
   /**
    * Reformats ESE coordinate string to standard DMS format
-   * Expected input format: [N/S/E/W]DDD.MM.SS.SSS
+   * Expected input formats:
+   * - [N/S/E/W]DDD.MM.SS.SSS (e.g., W000.08.05.294)
+   * - [N/S/E/W]D.MM.SS.SSS (e.g., W0.27.37.493)
    */
   private reformatCoordinates(coord: string): string {
-    if (!coord || typeof coord !== 'string') {
-      throw new Error('Invalid coordinate string');
+    if (!coord || typeof coord !== "string") {
+      throw new Error("Invalid coordinate string");
     }
 
     const parts = coord.split(".");
     if (parts.length !== 4) {
-      throw new Error('Invalid ESE coordinate format, expected 4 parts');
+      throw new Error("Invalid ESE coordinate format, expected 4 parts");
     }
 
     const [degreesPart, minutes, seconds, milliseconds] = parts;
-    
-    if (degreesPart.length < 4) {
-      throw new Error('Invalid degrees part in ESE coordinate');
+
+    if (degreesPart.length < 2) {
+      throw new Error("Invalid degrees part in ESE coordinate");
     }
 
     const direction = degreesPart.substring(0, 1);
-    const degrees = degreesPart.substring(1, 4);
+    const degrees = degreesPart.substring(1);
 
     return `${Number(degrees)}:${minutes}:${seconds}.${milliseconds}${direction}`;
   }
@@ -142,14 +133,14 @@ export class GeoHelper {
    * Formats degrees for ESE output (3 digits, zero-padded)
    */
   private formatESEDegrees(degrees: number): string {
-    return degrees.toString().padStart(3, '0');
+    return degrees.toString().padStart(3, "0");
   }
 
   /**
    * Formats minutes for ESE output (2 digits, zero-padded)
    */
   private formatESEMin(minutes: number): string {
-    return minutes.toString().padStart(2, '0');
+    return minutes.toString().padStart(2, "0");
   }
 
   /**

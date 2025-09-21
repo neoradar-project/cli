@@ -4,9 +4,8 @@ export interface LatLon {
 }
 
 interface SectorLineDisplay {
-  borderId: number;
-  mySector: string;
-  otherSectors: string[];
+  ownedVolume: string;
+  compareVolumes: string[];
 }
 
 export interface Sector {
@@ -23,17 +22,9 @@ export interface Sector {
 
 export type CartesianPoint = number[];
 
-export interface SectorLineDisplayZod {
-  fir: string;
-  name: string;
-  floor?: number;
-  ceiling?: number;
-}
-
 export interface SectorLine {
   id: number;
   points: CartesianPoint[];
-  display: SectorLineDisplayZod[];
 }
 
 export interface NseNavaid {

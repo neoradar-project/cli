@@ -43,12 +43,13 @@ program
   .description("Converts an SCT2 and ESE (if available) as well as EuroScope config files to the neoradar format")
   .argument("<string>", "Path to the package environment or built package, or SCT file, defaults to current directory")
   .option("--only-sct <string>", "Parse only an SCT file, and not parsing ESE or other EuroScope files", false)
+  .option("--no-profiles", "Skip converting STP profiles, defaults to false")
   .option("--layer-name <string>", "Output layer file name for the converted data if using --only-sct")
   .action((packagePath, options) => {
     if (options.onlySct) {
       convertSingleSCT(packagePath || process.cwd(), options.layerName);
     } else {
-      convert(packagePath || process.cwd());
+      convert(packagePath || process.cwd(), !options.profiles);
     }
   });
 

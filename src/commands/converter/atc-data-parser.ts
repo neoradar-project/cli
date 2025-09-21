@@ -1,23 +1,11 @@
 import path from "path";
 import fs from "fs";
+import { Sector as ParsedEseContentSector } from "../../definitions/package-defs";
+
 import { ParsedEseContent } from "../../helper/ese-helper";
-import {
-  ATCData,
-  BorderLine,
-  IcaoAircraft,
-  IcaoAirline,
-  LoginProfiles,
-  Position,
-  RecatDefinition,
-  Sector,
-  Volume,
-} from "../../definitions/package-atc-data";
+import { ATCData, BorderLine, IcaoAircraft, IcaoAirline, LoginProfiles, Position, RecatDefinition, Sector, Volume } from "../../definitions/package-atc-data";
 import ora, { Ora } from "ora";
-import {
-  atcDataParsingErrorCount,
-  logATCDataParsingError,
-  logATCDataParsingWarning,
-} from "../../helper/logger";
+import { atcDataParsingErrorCount, logATCDataParsingError, logATCDataParsingWarning } from "../../helper/logger";
 import { log } from "console";
 
 export interface NestedLoginProfiles {
@@ -51,10 +39,7 @@ class AtcDataManager {
     output: "package/datasets/atc-data.json",
   } as const;
 
-  public async parseAtcdata(
-    packageEnvironmentPath: string,
-    eseProcessedData?: ParsedEseContent | undefined
-  ): Promise<void> {
+  public async parseAtcdata(packageEnvironmentPath: string, eseProcessedData?: ParsedEseContent | undefined): Promise<void> {
     const spinner = ora("Parsing ATC data...").start();
 
     try {
@@ -69,11 +54,8 @@ class AtcDataManager {
       await this.writeAtcData(packageEnvironmentPath, atcData, spinner);
 
       if (atcDataParsingErrorCount > 0) {
-        spinner.warn(
-          `ATC data parsing completed with ${atcDataParsingErrorCount} errors. Check logs for details.`
-        );
-      }
-      else {
+        spinner.warn(`ATC data parsing completed with ${atcDataParsingErrorCount} errors. Check logs for details.`);
+      } else {
         spinner.succeed("ATC data parsing completed successfully.");
       }
     } catch (error) {
@@ -94,164 +76,87 @@ class AtcDataManager {
     };
   }
 
-  private async parseLoginProfilesData(
-    packageEnvironmentPath: string,
-    spinner: Ora
-  ): Promise<void> {
-    const loginProfilesFilePath = path.resolve(
-      packageEnvironmentPath,
-      this.PATHS.loginProfiles
-    );
-    const potentialLoginProfilesDir = path.resolve(
-      packageEnvironmentPath,
-      this.PATHS.loginProfilesDir
-    );
+  private async parseLoginProfilesData(packageEnvironmentPath: string, spinner: Ora): Promise<void> {
+    const loginProfilesFilePath = path.resolve(packageEnvironmentPath, this.PATHS.loginProfiles);
+    const potentialLoginProfilesDir = path.resolve(packageEnvironmentPath, this.PATHS.loginProfilesDir);
 
     if (this.isDirectoryExists(potentialLoginProfilesDir)) {
-      this.nestedProfilesRef = await this.parseLoginProfilesFromDirectory(
-        potentialLoginProfilesDir
-      );
+      this.nestedProfilesRef = await this.parseLoginProfilesFromDirectory(potentialLoginProfilesDir);
       if (Object.keys(this.nestedProfilesRef).length === 0) {
         spinner.warn(`Failed to parse login profiles or login profiles empty.`);
       } else {
-        spinner.info(
-          `Parsed login profiles from directory: ${potentialLoginProfilesDir}`
-        );
+        spinner.info(`Parsed login profiles from directory: ${potentialLoginProfilesDir}`);
       }
     } else if (this.isFileExists(loginProfilesFilePath)) {
-      const parsedProfiles = await this.parseLoginProfiles(
-        loginProfilesFilePath
-      );
-      this.nestedProfilesRef =
-        this.organizeProfilesByCallsignPrefix(parsedProfiles);
+      const parsedProfiles = await this.parseLoginProfiles(loginProfilesFilePath);
+      this.nestedProfilesRef = this.organizeProfilesByCallsignPrefix(parsedProfiles);
       if (Object.keys(this.nestedProfilesRef).length === 0) {
         spinner.warn(`Failed to parse login profiles or login profiles empty.`);
       } else {
-        spinner.info(
-          `Parsed login profiles from file: ${loginProfilesFilePath}`
-        );
+        spinner.info(`Parsed login profiles from file: ${loginProfilesFilePath}`);
       }
     } else {
-      spinner.warn(
-        `No valid login profiles found, skipping login profiles parsing.`
-      );
-      logATCDataParsingWarning(
-        `No valid login profiles found at ${potentialLoginProfilesDir} or ${loginProfilesFilePath}, skipping login profiles parsing.`
-      );
+      spinner.warn(`No valid login profiles found, skipping login profiles parsing.`);
+      logATCDataParsingWarning(`No valid login profiles found at ${potentialLoginProfilesDir} or ${loginProfilesFilePath}, skipping login profiles parsing.`);
       this.nestedProfilesRef = {};
     }
   }
 
-  private async parseSectorData(
-    eseProcessedData: ParsedEseContent | undefined,
-    atcData: ATCData,
-    spinner: Ora
-  ): Promise<void> {
+  private async parseSectorData(eseProcessedData: ParsedEseContent | undefined, atcData: ATCData, spinner: Ora): Promise<void> {
     if (!eseProcessedData) return;
 
     spinner.text = "Parsing sector data from ESE...";
     this.buildPositionToIdentifierMap(eseProcessedData);
-    const { sectors, borderLines, positions } =
-      this.transformSectorsAndBorderLines(eseProcessedData);
+    const { sectors, borderLines, positions } = this.transformSectorsAndBorderLines(eseProcessedData);
 
     atcData.sectors = sectors;
     atcData.borderLines = borderLines;
     atcData.positions = positions;
     this.positionsRef = positions;
-    spinner.info(
-      `Parsed ${Object.keys(sectors).length} sectors and ${
-        Object.keys(borderLines).length
-      } border lines.`
-    );
+    spinner.info(`Parsed ${Object.keys(sectors).length} sectors and ${Object.keys(borderLines).length} border lines.`);
   }
 
-  private async parseIcaoData(
-    packageEnvironmentPath: string,
-    atcData: ATCData,
-    spinner: Ora
-  ): Promise<void> {
-    const recatDefinitionPath = path.resolve(
-      packageEnvironmentPath,
-      this.PATHS.recatDefinition
-    );
+  private async parseIcaoData(packageEnvironmentPath: string, atcData: ATCData, spinner: Ora): Promise<void> {
+    const recatDefinitionPath = path.resolve(packageEnvironmentPath, this.PATHS.recatDefinition);
     const recatDefAvailable = this.isFileExists(recatDefinitionPath);
 
     if (!recatDefAvailable) {
-      logATCDataParsingWarning(
-        `RECAT definition file not found at ${recatDefinitionPath}, will not use recat definition for ICAO Aircraft.`
-      );
+      logATCDataParsingWarning(`RECAT definition file not found at ${recatDefinitionPath}, will not use recat definition for ICAO Aircraft.`);
     } else {
-      spinner.info(
-        `RECAT definition file found at ${recatDefinitionPath}, will use it for ICAO Aircraft parsing.`
-      );
+      spinner.info(`RECAT definition file found at ${recatDefinitionPath}, will use it for ICAO Aircraft parsing.`);
     }
 
-    await this.parseIcaoAircraftData(
-      packageEnvironmentPath,
-      atcData,
-      spinner,
-      recatDefAvailable ? recatDefinitionPath : undefined
-    );
+    await this.parseIcaoAircraftData(packageEnvironmentPath, atcData, spinner, recatDefAvailable ? recatDefinitionPath : undefined);
     if (Object.keys(atcData.icaoAircraft).length === 0) {
       spinner.warn(`No ICAO Aircraft data found or parsed`);
     } else {
-      spinner.info(
-        `Parsed ${
-          Object.keys(atcData.icaoAircraft).length
-        } ICAO Aircraft entries.`
-      );
+      spinner.info(`Parsed ${Object.keys(atcData.icaoAircraft).length} ICAO Aircraft entries.`);
     }
     await this.parseIcaoAirlinesData(packageEnvironmentPath, atcData, spinner);
     if (Object.keys(atcData.icaoAirlines).length === 0) {
       spinner.warn(`No ICAO Airlines data found or parsed`);
     } else {
-      spinner.info(
-        `Parsed ${
-          Object.keys(atcData.icaoAirlines).length
-        } ICAO Airlines entries.`
-      );
+      spinner.info(`Parsed ${Object.keys(atcData.icaoAirlines).length} ICAO Airlines entries.`);
     }
   }
 
-  private async parseIcaoAircraftData(
-    packageEnvironmentPath: string,
-    atcData: ATCData,
-    spinner: Ora,
-    recatDefinitionPath?: string
-  ): Promise<void> {
-    const icaoAircraftPath = path.resolve(
-      packageEnvironmentPath,
-      this.PATHS.icaoAircraft
-    );
+  private async parseIcaoAircraftData(packageEnvironmentPath: string, atcData: ATCData, spinner: Ora, recatDefinitionPath?: string): Promise<void> {
+    const icaoAircraftPath = path.resolve(packageEnvironmentPath, this.PATHS.icaoAircraft);
 
     if (!this.isFileExists(icaoAircraftPath)) {
-      logATCDataParsingWarning(
-        `ICAO Aircraft file not found at ${icaoAircraftPath}, skipping...`
-      );
+      logATCDataParsingWarning(`ICAO Aircraft file not found at ${icaoAircraftPath}, skipping...`);
       return;
     }
 
     spinner.text = "Parsing ICAO Aircraft data...";
-    atcData.icaoAircraft = await this.parseIcaoAircraft(
-      icaoAircraftPath,
-      recatDefinitionPath
-    );
+    atcData.icaoAircraft = await this.parseIcaoAircraft(icaoAircraftPath, recatDefinitionPath);
   }
 
-  private async parseIcaoAirlinesData(
-    packageEnvironmentPath: string,
-    atcData: ATCData,
-    spinner: Ora
-  ): Promise<void> {
-    const icaoAirlinesPath = path.resolve(
-      packageEnvironmentPath,
-      this.PATHS.icaoAirlines
-    );
+  private async parseIcaoAirlinesData(packageEnvironmentPath: string, atcData: ATCData, spinner: Ora): Promise<void> {
+    const icaoAirlinesPath = path.resolve(packageEnvironmentPath, this.PATHS.icaoAirlines);
 
     if (!this.isFileExists(icaoAirlinesPath)) {
-      logATCDataParsingWarning(
-        `ICAO Airlines file not found at ${icaoAirlinesPath}, skipping...`
-      );
+      logATCDataParsingWarning(`ICAO Airlines file not found at ${icaoAirlinesPath}, skipping...`);
       return;
     }
 
@@ -259,17 +164,11 @@ class AtcDataManager {
     atcData.icaoAirlines = await this.parseIcaoAirline(icaoAirlinesPath);
   }
 
-  private async parseAliasData(
-    packageEnvironmentPath: string,
-    atcData: ATCData,
-    spinner: Ora
-  ): Promise<void> {
+  private async parseAliasData(packageEnvironmentPath: string, atcData: ATCData, spinner: Ora): Promise<void> {
     const aliasPath = path.resolve(packageEnvironmentPath, this.PATHS.alias);
 
     if (!this.isFileExists(aliasPath)) {
-      logATCDataParsingWarning(
-        `Alias file not found at ${aliasPath}, skipping...`
-      );
+      logATCDataParsingWarning(`Alias file not found at ${aliasPath}, skipping...`);
       return;
     }
 
@@ -287,30 +186,15 @@ class AtcDataManager {
     atcData.positions = this.positionsRef;
   }
 
-  private async writeAtcData(
-    packageEnvironmentPath: string,
-    atcData: ATCData,
-    spinner: Ora
-  ): Promise<void> {
+  private async writeAtcData(packageEnvironmentPath: string, atcData: ATCData, spinner: Ora): Promise<void> {
     spinner.text = "Writing ATC data...";
-    const outputFilePath = path.resolve(
-      packageEnvironmentPath,
-      this.PATHS.output
-    );
+    const outputFilePath = path.resolve(packageEnvironmentPath, this.PATHS.output);
 
     try {
-      await fs.promises.writeFile(
-        outputFilePath,
-        JSON.stringify(atcData),
-        "utf-8"
-      );
+      await fs.promises.writeFile(outputFilePath, JSON.stringify(atcData), "utf-8");
     } catch (error) {
-      logATCDataParsingError(
-        `Failed to write ATC data to ${outputFilePath}: ${error}`
-      );
-      throw new Error(
-        `Failed to write ATC data to ${outputFilePath}: ${error}`
-      );
+      logATCDataParsingError(`Failed to write ATC data to ${outputFilePath}: ${error}`);
+      throw new Error(`Failed to write ATC data to ${outputFilePath}: ${error}`);
     }
   }
 
@@ -330,9 +214,7 @@ class AtcDataManager {
     }
   }
 
-  private buildPositionToIdentifierMap(
-    parsedEseContent: ParsedEseContent
-  ): void {
+  private buildPositionToIdentifierMap(parsedEseContent: ParsedEseContent): void {
     this.positionToIdentifierMap = {};
 
     for (const pos of parsedEseContent.position) {
@@ -340,9 +222,7 @@ class AtcDataManager {
     }
   }
 
-  private async parseLoginProfilesFromDirectory(
-    directoryPath: string
-  ): Promise<NestedLoginProfiles> {
+  private async parseLoginProfilesFromDirectory(directoryPath: string): Promise<NestedLoginProfiles> {
     const nestedProfiles: NestedLoginProfiles = {};
     const globalCallsigns = new Set<string>();
 
@@ -352,17 +232,10 @@ class AtcDataManager {
       });
 
       for (const subdir of subdirs.filter((d) => d.isDirectory())) {
-        await this.processLoginProfileSubdirectory(
-          directoryPath,
-          subdir.name,
-          nestedProfiles,
-          globalCallsigns
-        );
+        await this.processLoginProfileSubdirectory(directoryPath, subdir.name, nestedProfiles, globalCallsigns);
       }
     } catch (error) {
-      logATCDataParsingError(
-        `Failed to read login profiles directory: ${error}`
-      );
+      logATCDataParsingError(`Failed to read login profiles directory: ${error}`);
     }
 
     return nestedProfiles;
@@ -390,16 +263,9 @@ class AtcDataManager {
         const parsedProfiles = await this.parseLoginProfiles(profileFile);
         const groupKey = this.createGroupKey(fileName, folderName);
 
-        this.addProfilesToGroup(
-          parsedProfiles,
-          groupKey,
-          nestedProfiles,
-          globalCallsigns
-        );
+        this.addProfilesToGroup(parsedProfiles, groupKey, nestedProfiles, globalCallsigns);
       } catch (error) {
-        logATCDataParsingError(
-          `Failed to parse profile file ${profileFile}: ${error}`
-        );
+        logATCDataParsingError(`Failed to parse profile file ${profileFile}: ${error}`);
       }
     }
   }
@@ -420,8 +286,7 @@ class AtcDataManager {
   }
 
   private createGroupKey(fileName: string, folderName: string): string {
-    let groupSuffix =
-      fileName === "Profiles" ? "" : fileName.replace("Profiles", "");
+    let groupSuffix = fileName === "Profiles" ? "" : fileName.replace("Profiles", "");
     groupSuffix = groupSuffix.replace(/[_\-]/g, " ").trim();
 
     return groupSuffix ? `${folderName} ${groupSuffix}` : folderName;
@@ -448,20 +313,14 @@ class AtcDataManager {
   private async findProfileFiles(directoryPath: string): Promise<string[]> {
     try {
       const files = await fs.promises.readdir(directoryPath);
-      return files
-        .filter((file) => file.includes("Profiles") && file.endsWith(".txt"))
-        .map((file) => path.join(directoryPath, file));
+      return files.filter((file) => file.includes("Profiles") && file.endsWith(".txt")).map((file) => path.join(directoryPath, file));
     } catch (error) {
-      logATCDataParsingError(
-        `Failed to read directory ${directoryPath}: ${error}`
-      );
+      logATCDataParsingError(`Failed to read directory ${directoryPath}: ${error}`);
       return [];
     }
   }
 
-  private organizeProfilesByCallsignPrefix(
-    profiles: Record<string, LoginProfiles>
-  ): NestedLoginProfiles {
+  private organizeProfilesByCallsignPrefix(profiles: Record<string, LoginProfiles>): NestedLoginProfiles {
     const organized: NestedLoginProfiles = {};
 
     for (const [, profile] of Object.entries(profiles)) {
@@ -478,9 +337,7 @@ class AtcDataManager {
     return organized;
   }
 
-  private async parseLoginProfiles(
-    loginProfilesFile: string
-  ): Promise<Record<string, LoginProfiles>> {
+  private async parseLoginProfiles(loginProfilesFile: string): Promise<Record<string, LoginProfiles>> {
     try {
       const profiles = await fs.promises.readFile(loginProfilesFile, "utf-8");
       const lines = profiles.split("\n");
@@ -501,9 +358,7 @@ class AtcDataManager {
 
       return data;
     } catch (error) {
-      logATCDataParsingError(
-        `Failed to parse login profiles from ${loginProfilesFile}: ${error}`
-      );
+      logATCDataParsingError(`Failed to parse login profiles from ${loginProfilesFile}: ${error}`);
       return {};
     }
   }
@@ -516,10 +371,7 @@ class AtcDataManager {
     return line.startsWith("ATIS");
   }
 
-  private parseProfileLine(
-    line: string,
-    data: Record<string, LoginProfiles>
-  ): string {
+  private parseProfileLine(line: string, data: Record<string, LoginProfiles>): string {
     const elements = line.split(":");
     const callsign = elements[1];
     const range = Number(elements[2]) || 0;
@@ -565,10 +417,7 @@ class AtcDataManager {
     return { sectors, borderLines, positions };
   }
 
-  private createBorderLines(
-    parsedEseContent: ParsedEseContent,
-    borderLines: Record<number, BorderLine>
-  ): void {
+  private createBorderLines(parsedEseContent: ParsedEseContent, borderLines: Record<number, BorderLine>): void {
     parsedEseContent.sectorLines.forEach((sectorLine) => {
       borderLines[sectorLine.id] = {
         id: sectorLine.id,
@@ -577,10 +426,7 @@ class AtcDataManager {
     });
   }
 
-  private createPositions(
-    parsedEseContent: ParsedEseContent,
-    positions: Record<string, Position>
-  ): void {
+  private createPositions(parsedEseContent: ParsedEseContent, positions: Record<string, Position>): void {
     parsedEseContent.position.forEach((pos) => {
       const callsign = pos.callsign;
       const anchor = callsign.split(/[\*_]/)[0];
@@ -615,11 +461,7 @@ class AtcDataManager {
     return 0; // Default value
   }
 
-  private createSectors(
-    parsedEseContent: ParsedEseContent,
-    sectors: Record<string, Sector>,
-    positions: Record<string, Position>
-  ): void {
+  private createSectors(parsedEseContent: ParsedEseContent, sectors: Record<string, Sector>, positions: Record<string, Position>): void {
     const completedIdentifiers = new Set<string>();
     let sectorIdCounter = 1000;
 
@@ -630,12 +472,7 @@ class AtcDataManager {
       const identifier = oldSector.owners[0];
       if (completedIdentifiers.has(identifier)) continue;
 
-      const sector = this.createSectorFromEseData(
-        parsedEseContent,
-        identifier,
-        sectorIdCounter++,
-        positions
-      );
+      const sector = this.createSectorFromEseData(parsedEseContent, identifier, sectorIdCounter++, positions);
 
       if (sector) {
         sectors[identifier] = sector;
@@ -644,13 +481,7 @@ class AtcDataManager {
     }
 
     // Create empty sectors for remaining positions
-    this.createEmptySectorsForRemainingPositions(
-      parsedEseContent,
-      sectors,
-      positions,
-      completedIdentifiers,
-      sectorIdCounter
-    );
+    this.createEmptySectorsForRemainingPositions(parsedEseContent, sectors, positions, completedIdentifiers, sectorIdCounter);
 
     this.populateSectorOwners(parsedEseContent, sectors);
   }
@@ -661,18 +492,12 @@ class AtcDataManager {
     sectorId: number,
     positions: Record<string, Position>
   ): Sector | null {
-    const relatedSectors = parsedEseContent.sectors.filter(
-      (s) => s.owners && s.owners.length > 0 && s.owners[0] === identifier
-    );
+    const relatedSectors = parsedEseContent.sectors.filter((s) => s.owners && s.owners.length > 0 && s.owners[0] === identifier);
 
-    const position = parsedEseContent.position.find(
-      (p) => p.identifier === identifier
-    );
+    const position = parsedEseContent.position.find((p) => p.identifier === identifier);
 
     if (!position) {
-      logATCDataParsingWarning(
-        `No position found for identifier ${identifier}`
-      );
+      logATCDataParsingWarning(`No position found for identifier ${identifier}`);
       return null;
     }
 
@@ -705,7 +530,7 @@ class AtcDataManager {
     }
   }
 
-  private addVolumesToSector(relatedSectors: any[], sector: Sector): void {
+  private addVolumesToSector(relatedSectors: ParsedEseContentSector[], sector: Sector): void {
     const activeAirports = new Set<string>();
 
     for (const relatedSector of relatedSectors) {
@@ -715,6 +540,7 @@ class AtcDataManager {
         floor: relatedSector.floor,
         ceiling: relatedSector.ceiling,
         activationCondition: relatedSector.actives,
+        displaySectorLines: relatedSector.displaySectorLines || [],
       };
 
       // Collect active airports
@@ -764,10 +590,7 @@ class AtcDataManager {
     });
   }
 
-  private populateSectorOwners(
-    parsedEseContent: ParsedEseContent,
-    sectors: Record<string, Sector>
-  ): void {
+  private populateSectorOwners(parsedEseContent: ParsedEseContent, sectors: Record<string, Sector>): void {
     for (const oldSector of parsedEseContent.sectors) {
       if (!oldSector.owners || oldSector.owners.length === 0) continue;
 
@@ -784,36 +607,19 @@ class AtcDataManager {
     }
   }
 
-  private assignSectorsToPositions(
-    parsedEseContent: ParsedEseContent,
-    sectors: Record<string, Sector>,
-    positions: Record<string, Position>
-  ): void {
+  private assignSectorsToPositions(parsedEseContent: ParsedEseContent, sectors: Record<string, Sector>, positions: Record<string, Position>): void {
     const ownedSectors = this.buildOwnedSectorsMap(parsedEseContent, sectors);
-    const controllableSectors =
-      this.buildControllableSectorsMap(parsedEseContent);
+    const controllableSectors = this.buildControllableSectorsMap(parsedEseContent);
 
     for (const [callsign, position] of Object.entries(positions)) {
       const ownedSectorsForPosition = ownedSectors[callsign] || [];
-      const controllableSectorsForPosition = this.filterControllableSectors(
-        controllableSectors[callsign] || new Set(),
-        position.facility,
-        sectors
-      );
+      const controllableSectorsForPosition = this.filterControllableSectors(controllableSectors[callsign] || new Set(), position.facility, sectors);
 
-      position.sectors = [
-        ...ownedSectorsForPosition,
-        ...controllableSectorsForPosition.filter(
-          (sector) => !ownedSectorsForPosition.includes(sector)
-        ),
-      ];
+      position.sectors = [...ownedSectorsForPosition, ...controllableSectorsForPosition.filter((sector) => !ownedSectorsForPosition.includes(sector))];
     }
   }
 
-  private buildOwnedSectorsMap(
-    parsedEseContent: ParsedEseContent,
-    sectors: Record<string, Sector>
-  ): Record<string, string[]> {
+  private buildOwnedSectorsMap(parsedEseContent: ParsedEseContent, sectors: Record<string, Sector>): Record<string, string[]> {
     const ownedSectors: Record<string, string[]> = {};
 
     for (const [sectorId] of Object.entries(sectors)) {
@@ -831,9 +637,7 @@ class AtcDataManager {
     return ownedSectors;
   }
 
-  private buildControllableSectorsMap(
-    parsedEseContent: ParsedEseContent
-  ): Record<string, Set<string>> {
+  private buildControllableSectorsMap(parsedEseContent: ParsedEseContent): Record<string, Set<string>> {
     const controllableSectors: Record<string, Set<string>> = {};
 
     for (const oldSector of parsedEseContent.sectors) {
@@ -842,9 +646,7 @@ class AtcDataManager {
       const primaryIdentifier = oldSector.owners[0];
 
       for (const ownerIdentifier of oldSector.owners) {
-        const matchingPositions = parsedEseContent.position.filter(
-          (p) => p.identifier === ownerIdentifier
-        );
+        const matchingPositions = parsedEseContent.position.filter((p) => p.identifier === ownerIdentifier);
 
         for (const pos of matchingPositions) {
           if (!controllableSectors[pos.callsign]) {
@@ -858,11 +660,7 @@ class AtcDataManager {
     return controllableSectors;
   }
 
-  private filterControllableSectors(
-    controllableSectors: Set<string>,
-    positionFacility: number,
-    sectors: Record<string, Sector>
-  ): string[] {
+  private filterControllableSectors(controllableSectors: Set<string>, positionFacility: number, sectors: Record<string, Sector>): string[] {
     const controllableSectorsArray = Array.from(controllableSectors);
 
     if (positionFacility > 4) {
@@ -875,9 +673,7 @@ class AtcDataManager {
     return controllableSectorsArray;
   }
 
-  private async parseIcaoAirline(
-    icaoAirlinesPath: string
-  ): Promise<Record<string, IcaoAirline>> {
+  private async parseIcaoAirline(icaoAirlinesPath: string): Promise<Record<string, IcaoAirline>> {
     try {
       const content = await fs.promises.readFile(icaoAirlinesPath, "utf-8");
       const lines = content.split("\n");
@@ -906,10 +702,7 @@ class AtcDataManager {
     }
   }
 
-  private async parseIcaoAircraft(
-    icaoAircraftPath: string,
-    recatDefinitionPath?: string
-  ): Promise<Record<string, IcaoAircraft>> {
+  private async parseIcaoAircraft(icaoAircraftPath: string, recatDefinitionPath?: string): Promise<Record<string, IcaoAircraft>> {
     try {
       const content = await fs.promises.readFile(icaoAircraftPath, "utf-8");
       const recatDef = await this.loadRecatDefinition(recatDefinitionPath);
@@ -925,8 +718,7 @@ class AtcDataManager {
         const icao = parts[0];
         const engines = parts[1].slice(1);
         const wakeCat = parts[1].charAt(0);
-        const recat =
-          recatDef?.find((rd) => rd.icao === icao)?.categoryLabel || "";
+        const recat = recatDef?.find((rd) => rd.icao === icao)?.categoryLabel || "";
 
         const aircraft: IcaoAircraft = {
           icao,
@@ -947,16 +739,11 @@ class AtcDataManager {
     }
   }
 
-  private async loadRecatDefinition(
-    recatDefinitionPath?: string
-  ): Promise<RecatDefinition[] | undefined> {
+  private async loadRecatDefinition(recatDefinitionPath?: string): Promise<RecatDefinition[] | undefined> {
     if (!recatDefinitionPath) return undefined;
 
     try {
-      const recatData = await fs.promises.readFile(
-        recatDefinitionPath,
-        "utf-8"
-      );
+      const recatData = await fs.promises.readFile(recatDefinitionPath, "utf-8");
       return JSON.parse(recatData) as RecatDefinition[];
     } catch (error) {
       logATCDataParsingWarning(`Failed to load RECAT definition: ${error}`);
@@ -971,11 +758,7 @@ class AtcDataManager {
       const data: Record<string, string> = {};
 
       for (const line of lines) {
-        if (
-          line.startsWith(";") ||
-          line.startsWith(" ") ||
-          line.trim().length === 0
-        ) {
+        if (line.startsWith(";") || line.startsWith(" ") || line.trim().length === 0) {
           continue;
         }
 

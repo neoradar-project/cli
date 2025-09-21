@@ -79,8 +79,7 @@ class AtcDataManager {
         }
         else if (this.isFileExists(loginProfilesFilePath)) {
             const parsedProfiles = await this.parseLoginProfiles(loginProfilesFilePath);
-            this.nestedProfilesRef =
-                this.organizeProfilesByCallsignPrefix(parsedProfiles);
+            this.nestedProfilesRef = this.organizeProfilesByCallsignPrefix(parsedProfiles);
             if (Object.keys(this.nestedProfilesRef).length === 0) {
                 spinner.warn(`Failed to parse login profiles or login profiles empty.`);
             }
@@ -268,9 +267,7 @@ class AtcDataManager {
     async findProfileFiles(directoryPath) {
         try {
             const files = await fs_1.default.promises.readdir(directoryPath);
-            return files
-                .filter((file) => file.includes("Profiles") && file.endsWith(".txt"))
-                .map((file) => path_1.default.join(directoryPath, file));
+            return files.filter((file) => file.includes("Profiles") && file.endsWith(".txt")).map((file) => path_1.default.join(directoryPath, file));
         }
         catch (error) {
             (0, logger_1.logATCDataParsingError)(`Failed to read directory ${directoryPath}: ${error}`);
@@ -449,6 +446,7 @@ class AtcDataManager {
                 floor: relatedSector.floor,
                 ceiling: relatedSector.ceiling,
                 activationCondition: relatedSector.actives,
+                displaySectorLines: relatedSector.displaySectorLines || [],
             };
             // Collect active airports
             if (relatedSector.depApts?.length > 0) {
@@ -505,10 +503,7 @@ class AtcDataManager {
         for (const [callsign, position] of Object.entries(positions)) {
             const ownedSectorsForPosition = ownedSectors[callsign] || [];
             const controllableSectorsForPosition = this.filterControllableSectors(controllableSectors[callsign] || new Set(), position.facility, sectors);
-            position.sectors = [
-                ...ownedSectorsForPosition,
-                ...controllableSectorsForPosition.filter((sector) => !ownedSectorsForPosition.includes(sector)),
-            ];
+            position.sectors = [...ownedSectorsForPosition, ...controllableSectorsForPosition.filter((sector) => !ownedSectorsForPosition.includes(sector))];
         }
     }
     buildOwnedSectorsMap(parsedEseContent, sectors) {
@@ -631,9 +626,7 @@ class AtcDataManager {
             const lines = content.split("\n");
             const data = {};
             for (const line of lines) {
-                if (line.startsWith(";") ||
-                    line.startsWith(" ") ||
-                    line.trim().length === 0) {
+                if (line.startsWith(";") || line.startsWith(" ") || line.trim().length === 0) {
                     continue;
                 }
                 const parts = line.split(" ");

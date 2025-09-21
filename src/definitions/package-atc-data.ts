@@ -41,6 +41,12 @@ export interface Volume {
   floor: number;
   ceiling: number;
   activationCondition: any[];
+  displaySectorLines: SectorLineDisplay[];
+}
+
+export interface SectorLineDisplay {
+  ownedVolume: string;
+  compareVolumes: string[];
 }
 
 export interface Sector {
@@ -83,6 +89,6 @@ export enum AtcPositionType {
 }
 
 export interface RecatDefinition {
-    icao: string;
-    categoryLabel: string;
+  icao: string;
+  categoryLabel: string;
 }

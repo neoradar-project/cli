@@ -188,17 +188,6 @@ const convertAtlasFolder = async (packagePath) => {
         if (!fs_1.default.existsSync(imagesOutputPath)) {
             fs_1.default.mkdirSync(imagesOutputPath, { recursive: true });
         }
-        // Clear existing atlas files
-        if (fs_1.default.existsSync(imagesOutputPath)) {
-            const existingFiles = fs_1.default.readdirSync(imagesOutputPath);
-            for (const file of existingFiles) {
-                const filePath = path_1.default.join(imagesOutputPath, file);
-                const stat = fs_1.default.statSync(filePath);
-                if (stat.isFile()) {
-                    fs_1.default.unlinkSync(filePath);
-                }
-            }
-        }
         await (0, atlas_generator_1.generateAtlas)(symbolsPath, imagesOutputPath);
         spinner.succeed("Atlas generation completed successfully.");
     }
@@ -207,20 +196,22 @@ const convertAtlasFolder = async (packagePath) => {
         console.error("Atlas generation failed:", error);
     }
 };
-const convert = async (packagePath) => {
+const convert = async (packagePath, skipProfiles) => {
     console.log(`Starting conversion for package environment at path: ${packagePath}`);
-    const confirm = await (0, utils_1.askForConfirmation)("\n⚠️  CAUTION: This operation will:\n" +
+    const confirmMessage = "\n⚠️  CAUTION: This operation will:\n" +
         "   • Override existing geojson datasets with the same names\n" +
         "   • Override fields that require update in the NSE\n" +
+        "   • Override existing package symbol data\n" +
         "   • Override the atc-data file\n" +
-        "   • Override existing STP profiles\n" +
+        (skipProfiles ? "" : "   • Override existing STP profiles\n") +
         "   • Add missing layers to the manifest\n" +
         "   • Index all elements overriding the index in the NSE\n" +
         "IT WILL NOT:\n" +
         "   • Remove or edit existing layers in your manifest\n" +
         "   • Remove custom geojson datasets\n" +
-        "   • Remove custom STP profiles\n" +
-        "   • Change any systems, images or fonts\n");
+        (skipProfiles ? "" : "   • Remove custom STP profiles\n") +
+        "   • Change any systems, images or fonts\n";
+    const confirm = await (0, utils_1.askForConfirmation)(confirmMessage);
     if (!confirm) {
         console.log("Conversion aborted by user.");
         return;
@@ -229,7 +220,9 @@ const convert = async (packagePath) => {
     const sectorFilesPath = `${packagePath}/sector_files`;
     const datasetsOutputPath = `${packagePath}/package/datasets`;
     const parsedESE = await convertSCT2AndESEFiles(sectorFilesPath, datasetsOutputPath);
-    await convertASRFolder(packagePath);
+    if (!skipProfiles) {
+        await convertASRFolder(packagePath);
+    }
     await convertAtlasFolder(packagePath);
     await atc_data_parser_1.atcData.parseAtcdata(packagePath, parsedESE);
     // Running the indexer after conversion

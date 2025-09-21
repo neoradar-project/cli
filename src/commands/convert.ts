@@ -203,18 +203,6 @@ const convertAtlasFolder = async (packagePath: string) => {
       fs.mkdirSync(imagesOutputPath, { recursive: true });
     }
 
-    // Clear existing atlas files
-    if (fs.existsSync(imagesOutputPath)) {
-      const existingFiles = fs.readdirSync(imagesOutputPath);
-      for (const file of existingFiles) {
-        const filePath = path.join(imagesOutputPath, file);
-        const stat = fs.statSync(filePath);
-        if (stat.isFile()) {
-          fs.unlinkSync(filePath);
-        }
-      }
-    }
-
     await generateAtlas(symbolsPath, imagesOutputPath);
     spinner.succeed("Atlas generation completed successfully.");
   } catch (error) {
@@ -223,24 +211,25 @@ const convertAtlasFolder = async (packagePath: string) => {
   }
 };
 
-export const convert = async (packagePath: string) => {
+export const convert = async (packagePath: string, skipProfiles: boolean) => {
   console.log(`Starting conversion for package environment at path: ${packagePath}`);
 
-  const confirm = await askForConfirmation(
+  const confirmMessage =
     "\n⚠️  CAUTION: This operation will:\n" +
-      "   • Override existing geojson datasets with the same names\n" +
-      "   • Override fields that require update in the NSE\n" +
-      "   • Override existing package symbol data\n" +
-      "   • Override the atc-data file\n" +
-      "   • Override existing STP profiles\n" +
-      "   • Add missing layers to the manifest\n" +
-      "   • Index all elements overriding the index in the NSE\n" +
-      "IT WILL NOT:\n" +
-      "   • Remove or edit existing layers in your manifest\n" +
-      "   • Remove custom geojson datasets\n" +
-      "   • Remove custom STP profiles\n" +
-      "   • Change any systems, images or fonts\n"
-  );
+    "   • Override existing geojson datasets with the same names\n" +
+    "   • Override fields that require update in the NSE\n" +
+    "   • Override existing package symbol data\n" +
+    "   • Override the atc-data file\n" +
+    (skipProfiles ? "" : "   • Override existing STP profiles\n") +
+    "   • Add missing layers to the manifest\n" +
+    "   • Index all elements overriding the index in the NSE\n" +
+    "IT WILL NOT:\n" +
+    "   • Remove or edit existing layers in your manifest\n" +
+    "   • Remove custom geojson datasets\n" +
+    (skipProfiles ? "Remove any STP profiles" : "   • Remove custom STP profiles\n") +
+    "   • Change any systems, images or fonts\n";
+
+  const confirm = await askForConfirmation(confirmMessage);
 
   if (!confirm) {
     console.log("Conversion aborted by user.");
@@ -252,7 +241,9 @@ export const convert = async (packagePath: string) => {
   const datasetsOutputPath = `${packagePath}/package/datasets`;
 
   const parsedESE = await convertSCT2AndESEFiles(sectorFilesPath, datasetsOutputPath);
-  await convertASRFolder(packagePath);
+  if (!skipProfiles) {
+    await convertASRFolder(packagePath);
+  }
   await convertAtlasFolder(packagePath);
   await atcData.parseAtcdata(packagePath, parsedESE);
 

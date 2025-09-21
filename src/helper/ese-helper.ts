@@ -20,6 +20,12 @@ interface SectorHandlerContext {
   baseMatrixInt: number;
   numericIDReplacementMatrix: Record<string, number>;
   processingNewSector: boolean;
+  pendingDisplayData: Array<{
+    sectorLineId: string;
+    sectorId: string;
+    adjSector1: string;
+    adjSector2: string;
+  }>;
 }
 
 export class EseHelper {
@@ -43,7 +49,6 @@ export class EseHelper {
     return {
       id: 0,
       points: [],
-      display: [],
     };
   }
 
@@ -64,8 +69,8 @@ export class EseHelper {
       baseMatrixInt: 690,
       numericIDReplacementMatrix: {},
       processingNewSector: false,
+      pendingDisplayData: [], // Add this
     };
-
     let currentSection = "";
 
     for (const rawLine of lines) {
@@ -86,6 +91,8 @@ export class EseHelper {
     if (context.processingNewSector) {
       this.finalizeSector(context);
     }
+
+    this.processPendingDisplayData(context, result);
 
     return result;
   }
@@ -162,6 +169,7 @@ export class EseHelper {
     const handlers: Record<string, () => void> = {
       SECTORLINE: () => this.handleSectorLine(line, result, context, allNavaids),
       CIRCLE_SECTORLINE: () => this.handleSectorLine(line, result, context, allNavaids),
+      DISPLAY: () => this.handleDisplay(line, context, result), // Added result parameter
       COORD: () => this.handleCoord(line, context),
       SECTOR: () => this.handleNewSector(line, result, context),
       OWNER: () => this.handleOwner(line, context),
@@ -187,7 +195,6 @@ export class EseHelper {
     context.currentSectorLine = {
       id: numericId,
       points: [],
-      display: [],
     };
 
     result.sectorLines.push(context.currentSectorLine);
@@ -274,6 +281,63 @@ export class EseHelper {
     }
   }
 
+  private static getOriginalId(numericId: number, context: SectorHandlerContext): string | null {
+    // Find the key where the value matches the numeric ID
+    for (const [key, value] of Object.entries(context.numericIDReplacementMatrix)) {
+      if (value === numericId) {
+        return key;
+      }
+    }
+
+    return null;
+  }
+
+  private static handleDisplay(line: string, context: SectorHandlerContext, result: ParsedEseContent): void {
+    const [, sectorId, adjSector1, adjSector2] = line.split(":");
+
+    // Get the original string ID for the current sector line
+    const originalSectorLineId = this.getOriginalId(context.currentSectorLine.id, context);
+
+    if (!originalSectorLineId) {
+      logESEParsingWarning(`Could not find original ID for sector line: ${context.currentSectorLine.id}`);
+      return;
+    }
+
+    // Try to find the sector with the matching name (using sectorId from the line)
+    const targetSector = result.sectors.find((sector) => sector.name === originalSectorLineId);
+
+    if (targetSector) {
+      targetSector.displaySectorLines.push({
+        ownedVolume: sectorId,
+        compareVolumes: [adjSector1, adjSector2],
+      });
+    } else {
+      // Defer processing if sector doesn't exist yet
+      context.pendingDisplayData.push({
+        sectorLineId: originalSectorLineId, // For reference/debugging
+        sectorId: sectorId, // The sector that should own this display rule
+        adjSector1,
+        adjSector2,
+      });
+    }
+  }
+
+  private static processPendingDisplayData(context: SectorHandlerContext, result: ParsedEseContent): void {
+    for (const pendingDisplay of context.pendingDisplayData) {
+      const targetSector = result.sectors.find((sector) => sector.name === pendingDisplay.sectorLineId);
+
+      if (targetSector) {
+        targetSector.displaySectorLines.push({
+          ownedVolume: pendingDisplay.sectorId,
+          compareVolumes: [pendingDisplay.adjSector1, pendingDisplay.adjSector2],
+        });
+      }
+    }
+
+    // Clear the pending data after processing
+    context.pendingDisplayData = [];
+  }
+
   private static handleNewSector(line: string, result: ParsedEseContent, context: SectorHandlerContext): void {
     const [, name, floor, ceiling] = line.split(":");
     if (name.startsWith("Only") && !this.isGNG) return;
@@ -352,7 +416,7 @@ export class EseHelper {
   }
 
   private static handleDisplaySectorLine(line: string, context: SectorHandlerContext): void {
-    const [borderId, mySector, ...others] = this.splitAndClean(line, "DISPLAY_SECTORLINE");
+    const [borderId, ownedVolume, ...others] = this.splitAndClean(line, "DISPLAY_SECTORLINE");
 
     const borderIdNum = Number(borderId);
     if (isNaN(borderIdNum)) {
@@ -361,9 +425,8 @@ export class EseHelper {
     }
 
     context.currentSector.displaySectorLines.push({
-      borderId: borderIdNum,
-      mySector,
-      otherSectors: others.map((item) => item.replace(mySector, "")).filter((item) => item !== ""),
+      ownedVolume,
+      compareVolumes: others.map((item) => item.replace(ownedVolume, "")).filter((item) => item !== ""),
     });
   }
 }
