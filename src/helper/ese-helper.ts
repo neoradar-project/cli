@@ -26,6 +26,11 @@ interface SectorHandlerContext {
     adjSector1: string;
     adjSector2: string;
   }>;
+  pendingSectorLineDisplayData: Array<{
+    borderId: number;
+    ownedVolume: string;
+    compareVolumes: string[];
+  }>;
 }
 
 export class EseHelper {
@@ -49,6 +54,7 @@ export class EseHelper {
     return {
       id: 0,
       points: [],
+      displaySectorLines: [],
     };
   }
 
@@ -69,7 +75,8 @@ export class EseHelper {
       baseMatrixInt: 690,
       numericIDReplacementMatrix: {},
       processingNewSector: false,
-      pendingDisplayData: [], // Add this
+      pendingDisplayData: [],
+      pendingSectorLineDisplayData: [],
     };
     let currentSection = "";
 
@@ -177,7 +184,7 @@ export class EseHelper {
       DEPAPT: () => this.handleDepApt(line, context),
       ARRAPT: () => this.handleArrApt(line, context),
       ACTIVE: () => this.handleActive(line, context),
-      DISPLAY_SECTORLINE: () => this.handleDisplaySectorLine(line, context),
+      DISPLAY_SECTORLINE: () => this.handleDisplaySectorLine(line, context, result),
     };
 
     const prefix = line.split(":")[0];
@@ -195,6 +202,7 @@ export class EseHelper {
     context.currentSectorLine = {
       id: numericId,
       points: [],
+      displaySectorLines: [],
     };
 
     result.sectorLines.push(context.currentSectorLine);
@@ -299,7 +307,7 @@ export class EseHelper {
     const originalSectorLineId = this.getOriginalId(context.currentSectorLine.id, context);
 
     if (!originalSectorLineId) {
-      logESEParsingWarning(`Could not find original ID for sector line: ${context.currentSectorLine.id}`);
+      // logESEParsingWarning(`Could not find original ID for sector line: ${context.currentSectorLine.id}`);
       return;
     }
 
@@ -334,7 +342,18 @@ export class EseHelper {
       }
     }
 
+    for (const pending of context.pendingSectorLineDisplayData) {
+      const sectorLine = result.sectorLines.find((sl) => sl.id === pending.borderId);
+      if (sectorLine) {
+        sectorLine.displaySectorLines.push({
+          ownedVolume: pending.ownedVolume,
+          compareVolumes: pending.compareVolumes,
+        });
+      }
+    }
+
     // Clear the pending data after processing
+    context.pendingSectorLineDisplayData = [];
     context.pendingDisplayData = [];
   }
 
@@ -399,11 +418,31 @@ export class EseHelper {
   }
 
   private static handleDepApt(line: string, context: SectorHandlerContext): void {
-    context.currentSector.depApts = this.splitAndClean(line, "DEPAPT");
+    const data = this.splitAndClean(line, "DEPAPT");
+    context.currentSector.depApts = data;
+
+    // for (const icao of data) {
+    //   if (!icao) continue;
+    //   if (icao.length !== 4) {
+    //     logESEParsingWarning(`Invalid ICAO code in DEPAPT line: "${line}"`);
+    //     continue;
+    //   }
+    //   context.currentSector.actives.push({ type: "depApt", icao });
+    // }
   }
 
   private static handleArrApt(line: string, context: SectorHandlerContext): void {
-    context.currentSector.arrApts = this.splitAndClean(line, "ARRAPT");
+    const data = this.splitAndClean(line, "ARRAPT");
+    context.currentSector.arrApts = data;
+
+    // for (const icao of data) {
+    //   if (!icao) continue;
+    //   if (icao.length !== 4) {
+    //     logESEParsingWarning(`Invalid ICAO code in ARRAPT line: "${line}"`);
+    //     continue;
+    //   }
+    //   context.currentSector.actives.push({ type: "arrApt", icao });
+    // }
   }
 
   private static handleActive(line: string, context: SectorHandlerContext): void {
@@ -412,10 +451,10 @@ export class EseHelper {
       logESEParsingWarning(`Invalid ACTIVE line format: "${line}" - expected ICAO and runway`);
       return;
     }
-    context.currentSector.actives.push({ icao, runway });
+    context.currentSector.actives.push({ type: "runway", icao, runway });
   }
 
-  private static handleDisplaySectorLine(line: string, context: SectorHandlerContext): void {
+  private static handleDisplaySectorLine(line: string, context: SectorHandlerContext, result: ParsedEseContent): void {
     const [borderId, ownedVolume, ...others] = this.splitAndClean(line, "DISPLAY_SECTORLINE");
 
     const borderIdNum = Number(borderId);
@@ -423,10 +462,16 @@ export class EseHelper {
       logESEParsingError(`Invalid border ID in DISPLAY_SECTORLINE: "${borderId}" in line: "${line}"`);
       return;
     }
-
-    context.currentSector.displaySectorLines.push({
+    const displayData = {
       ownedVolume,
-      compareVolumes: others.map((item) => item.replace(ownedVolume, "")).filter((item) => item !== ""),
-    });
+      compareVolumes: others,
+    };
+    const borderExists = result.sectorLines.find((sl) => sl.id === borderIdNum);
+    if (!borderExists) {
+      context.pendingSectorLineDisplayData.push({ borderId: borderIdNum, ...displayData });
+    } else {
+      borderExists.displaySectorLines.push(displayData);
+      console.log(`Added DISPLAY_SECTORLINE to existing border ID: ${borderIdNum}`);
+    }
   }
 }

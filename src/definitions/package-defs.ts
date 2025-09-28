@@ -25,6 +25,7 @@ export type CartesianPoint = number[];
 export interface SectorLine {
   id: number;
   points: CartesianPoint[];
+  displaySectorLines: SectorLineDisplay[];
 }
 
 export interface NseNavaid {

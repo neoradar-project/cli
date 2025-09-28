@@ -33,6 +33,7 @@ export interface IcaoAirline {
 export interface BorderLine {
   id: number;
   lines: Array<Array<number>>;
+  displaySectorLines: SectorLineDisplay[];
 }
 
 export interface Volume {

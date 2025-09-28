@@ -209,7 +209,7 @@ const convert = async (packagePath, skipProfiles) => {
         "IT WILL NOT:\n" +
         "   • Remove or edit existing layers in your manifest\n" +
         "   • Remove custom geojson datasets\n" +
-        (skipProfiles ? "" : "   • Remove custom STP profiles\n") +
+        (skipProfiles ? "Remove any STP profiles" : "   • Remove custom STP profiles\n") +
         "   • Change any systems, images or fonts\n";
     const confirm = await (0, utils_1.askForConfirmation)(confirmMessage);
     if (!confirm) {

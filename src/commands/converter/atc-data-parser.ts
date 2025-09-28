@@ -422,6 +422,7 @@ class AtcDataManager {
       borderLines[sectorLine.id] = {
         id: sectorLine.id,
         lines: sectorLine.points,
+        displaySectorLines: sectorLine.displaySectorLines || [],
       };
     });
   }
