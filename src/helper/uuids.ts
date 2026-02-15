@@ -1,14 +1,12 @@
 import { getFeatureName } from "../utils";
 
 class UUIDManager {
-
   private uuidMap: Map<string, string> = new Map();
   private typeMap: Set<string> = new Set();
 
   public getSharedUUID(type: string, name: string): string {
-    const formatted = `${type}-${name}`
-      .toLowerCase()
-      .replace(/[^a-z0-9-]/g, "-");
+    const kebabType = type.replace(/([a-z])([A-Z])/g, "$1-$2").toLowerCase();
+    const formatted = `${kebabType}-${name}`.toLowerCase().replace(/[^a-z0-9-]/g, "-");
     return formatted
       .replace(/-+/g, "-") // Replace multiple dashes with single dash
       .replace(/-$/g, ""); // Remove trailing dash
@@ -27,9 +25,7 @@ class UUIDManager {
       feature.properties.uuid = uuid ? uuid : this.getSharedUUID(type, featureName);
     } else {
       // Features without names get a fallback ID
-      console.warn(
-        `Feature ${JSON.stringify(feature)} has no name, assigning fallback UUID.`
-      );
+      console.warn(`Feature ${JSON.stringify(feature)} has no name, assigning fallback UUID.`);
       feature.properties.uuid = `${type}-unnamed-${Date.now()}`;
     }
   }

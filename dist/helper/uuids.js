@@ -6,9 +6,8 @@ class UUIDManager {
     uuidMap = new Map();
     typeMap = new Set();
     getSharedUUID(type, name) {
-        const formatted = `${type}-${name}`
-            .toLowerCase()
-            .replace(/[^a-z0-9-]/g, "-");
+        const kebabType = type.replace(/([a-z])([A-Z])/g, "$1-$2").toLowerCase();
+        const formatted = `${kebabType}-${name}`.toLowerCase().replace(/[^a-z0-9-]/g, "-");
         return formatted
             .replace(/-+/g, "-") // Replace multiple dashes with single dash
             .replace(/-$/g, ""); // Remove trailing dash

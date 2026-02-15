@@ -65,7 +65,7 @@ export function getFeatureName(feature: GeoJSON.Feature<any>): string | null {
   }
 
   // Section property types
-  if (["artcc-high", "artcc-low", "artcc", "geo", "high-airway", "low-airway", "sid", "star"].includes(type)) {
+  if (["artccHigh", "artccLow", "artcc", "geo", "highAirway", "lowAirway", "sid", "star"].includes(type)) {
     if (feature.properties.section) {
       return feature.properties.section;
     }
