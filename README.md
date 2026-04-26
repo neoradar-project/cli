@@ -12,6 +12,7 @@ Currently, the CLI allows you to:
 - Convert ES Alises to NeoRadar format
 - Convert ICAO Aircrafts and ICAO Airlines to NeoRadar format
 - Index all your geojson features into NeoRadar's map index in the NSE
+- Build an SQLite airways database from EuroScope `airway.txt` and `isec.txt`
 
 It will soon cover conversions of TopSky Maps to NeoRadar.
 
@@ -21,7 +22,7 @@ See the manual of the tool with neoradar-cli help
 
 ### Installation
 
-The CLI requires NodeJS 22 as an environment, see NodeJS installation guides for help.
+The CLI requires NodeJS 24 and pnpm 10, see NodeJS installation guides for help.
 
 Install the CLI tool: pnpm add -g github:neoradar-project/cli
 
@@ -70,3 +71,15 @@ Once your package is ready, and you have made the required changes, you can prep
 `neoradar-cli distribute ./MyNewPackage`
 
 This will create a polished ZIP file containing your package, the content of which you can drop in NeoRadar/packages and start using!
+
+### Building an airways database
+
+`neoradar-cli build-airways ./MyNewPackage/sector_files/NavData -o ./MyNewPackage/package/datasets/airways.db`
+
+The path argument must be a directory containing both `airway.txt` and `isec.txt` (the standard EuroScope NavData layout). The command parses both files and writes a single SQLite database with `waypoints`, `airways`, `direct_segments`, and a `traversable_paths` view ready for route validation.
+
+If `-o` is omitted, the database is written next to the input files as `airways.db`. A typical LFXX dataset (~9 MB airway.txt + ~8 MB isec.txt) builds in roughly 3 seconds.
+
+## Development
+
+Run the test suite with `pnpm test` (uses the built-in `node:test` runner).
