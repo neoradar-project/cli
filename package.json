@@ -56,7 +56,7 @@
     "ky": "^1.14.3",
     "mustache": "^4.2.0",
     "ora": "^8.2.0",
-    "sector-file-tools": "github:neoradar-project/sector-file-tools#v1.2.6",
+    "sector-file-tools": "github:neoradar-project/sector-file-tools#v1.2.7",
     "typescript": "^5.9.3",
     "winston": "^3.19.0",
     "yauzl": "^3.3.0",
