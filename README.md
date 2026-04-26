@@ -23,7 +23,7 @@ See the manual of the tool with neoradar-cli help
 
 The CLI requires NodeJS 22 as an environment, see NodeJS installation guides for help.
 
-Install the CLI tool: npm install -g github:neoradar-project/cli
+Install the CLI tool: pnpm add -g github:neoradar-project/cli
 
 ### Creating the new environment
 

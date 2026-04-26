@@ -1,14 +1,16 @@
 {
   "name": "neoradar-cli",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "CLI Tool for neoradar for packaging and releasing sector files",
   "main": "dist/index.js",
   "bin": {
     "neoradar-cli": "dist/index.js"
   },
   "preferGlobal": true,
+  "packageManager": "pnpm@10.0.0",
   "engines": {
-    "node": ">=22.0.0"
+    "node": ">=24.0.0",
+    "pnpm": ">=10.0.0"
   },
   "scripts": {
     "prebuild": "node scripts/get-version.js",
@@ -37,24 +39,28 @@
   "homepage": "https://github.com/neoradar-project/cli#readme",
   "devDependencies": {
     "@types/figlet": "^1.7.0",
-    "@types/node": "^24.0.1",
+    "@types/node": "^24.12.2",
     "@types/yauzl": "^2.10.3"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.828.0",
-    "@turf/turf": "^7.2.0",
-    "ajv": "^8.17.1",
-    "commander": "^14.0.0",
+    "@aws-sdk/client-s3": "^3.1037.0",
+    "@turf/turf": "^7.3.5",
+    "ajv": "^8.20.0",
+    "commander": "^14.0.3",
     "coordinate-parser": "^1.0.7",
     "dms-conversion": "^3.1.4",
-    "figlet": "^1.8.1",
+    "figlet": "^1.11.0",
     "free-tex-packer-core": "^0.3.5",
-    "ky": "^1.8.1",
+    "ky": "^1.14.3",
+    "mustache": "^4.2.0",
     "ora": "^8.2.0",
     "sector-file-tools": "github:neoradar-project/sector-file-tools#v1.2.4",
-    "typescript": "^5.8.3",
-    "winston": "^3.17.0",
-    "yauzl": "^3.2.0",
+    "typescript": "^5.9.3",
+    "winston": "^3.19.0",
+    "yauzl": "^3.3.0",
     "zip-a-folder": "^3.1.9"
+  },
+  "overrides": {
+    "mustache": "^4.2.0"
   }
 }
