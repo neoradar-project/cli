@@ -70,3 +70,54 @@ Once your package is ready, and you have made the required changes, you can prep
 `neoradar-cli distribute ./MyNewPackage`
 
 This will create a polished ZIP file containing your package, the content of which you can drop in NeoRadar/packages and start using!
+
+### Publishing
+
+To upload the package to object storage, run distribute with the publish flag:
+
+`neoradar-cli distribute ./MyNewPackage --publish`
+
+This reads the `publish` block of `config.json`. Two providers are supported.
+
+**AWS S3** (default):
+
+```jsonc
+{
+  "sectorFileFromGNG": true,
+  "publish": {
+    "provider": "s3",
+    "bucketName": "neoradar",
+    "region": "eu-west-2",
+    "makePublic": true,
+    "envVariableAccessKeyId": "AWS_ACCESS_KEY_ID",
+    "envVariableSecretAccessKey": "AWS_SECRET_ACCESS_KEY"
+  }
+}
+```
+
+**Cloudflare R2** (S3-compatible):
+
+```jsonc
+{
+  "sectorFileFromGNG": true,
+  "publish": {
+    "provider": "r2",
+    "bucketName": "neoradar-packages",
+    "endpoint": "https://<account-id>.r2.cloudflarestorage.com",
+    "baseUrl": "https://pkg.neoradar.app",
+    "s3Path": "",
+    "envVariableAccessKeyId": "R2_ACCESS_KEY_ID",
+    "envVariableSecretAccessKey": "R2_SECRET_ACCESS_KEY",
+    "cloudflare": { "zoneId": "<zone-id>", "envVariableApiToken": "CF_API_TOKEN" }
+  }
+}
+```
+
+Notes for R2:
+
+- `endpoint` and `baseUrl` are **required**. `baseUrl` must be your public custom domain (the R2 S3 endpoint is not publicly readable), and it is what the client uses for `downloadUrl` / `deltaFilesBaseUrl`.
+- R2 has no per-object ACLs, so `makePublic` is ignored — grant public access by binding a custom domain (or enabling r2.dev) in the Cloudflare dashboard.
+- Credentials come from the two env vars (mapped to the standard AWS env vars the SDK reads).
+- The optional `cloudflare` block purges the manifest (and download URL) from Cloudflare's cache after each publish so clients see the update immediately. The token needs **Zone → Cache Purge**. Add extra URLs to purge (e.g. a top-level `providers.json`) via `"purgeUrls": ["https://pkg.neoradar.app/providers.json"]`.
+
+**Caching:** `manifest.json` is always uploaded `no-cache` so update checks see fresh data. Every other file uses `cacheControl` (default `no-cache`). Only set a long `cacheControl` (e.g. `"public, max-age=31536000, immutable"`) if your file paths are versioned/immutable — the default delta layout overwrites files in place, where long caching would serve stale content.

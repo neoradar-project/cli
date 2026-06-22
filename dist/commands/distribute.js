@@ -12,6 +12,7 @@ const indexer_1 = require("./indexer");
 const checksum_1 = require("../helper/publish/checksum");
 const file_scanner_1 = require("../helper/publish//file-scanner");
 const s3_uploader_1 = require("../helper/publish//s3-uploader");
+const cloudflare_1 = require("../helper/publish/cloudflare");
 const config_1 = require("../helper/config");
 const distributeCommand = async (packageEnvironmentPath, newPackageName, newVersion, skipIndexing, publish, keepDeploy) => {
     const spinner = (0, ora_1.default)("Preparing package for distribution...").start();
@@ -135,9 +136,24 @@ async function handlePublishing(packageEnvironmentPath, packageId, manifest, zip
         return;
     }
     const publishConfig = config.publish;
-    if (!publishConfig.bucketName || !publishConfig.region) {
-        spinner.fail("publish config must contain bucketName and region");
+    const provider = publishConfig.provider || "s3";
+    if (!publishConfig.bucketName) {
+        spinner.fail("publish config must contain bucketName");
         return;
+    }
+    if (provider === "s3" && !publishConfig.region) {
+        spinner.fail("publish config must contain region for S3");
+        return;
+    }
+    if (provider === "r2") {
+        if (!publishConfig.endpoint) {
+            spinner.fail("publish config with provider 'r2' must contain endpoint, e.g. https://<account-id>.r2.cloudflarestorage.com");
+            return;
+        }
+        if (!publishConfig.baseUrl) {
+            spinner.fail("publish config with provider 'r2' must contain baseUrl (your public R2 custom domain, e.g. https://pkg.neoradar.app/<path>) - the R2 S3 endpoint is not publicly readable");
+            return;
+        }
     }
     if (publishConfig.envVariableAccessKeyId && publishConfig.envVariableSecretAccessKey) {
         if (process.env[publishConfig.envVariableAccessKeyId]) {
@@ -202,18 +218,44 @@ async function handlePublishing(packageEnvironmentPath, packageId, manifest, zip
     spinner.info(`Provider manifest generated: ${manifestOutputPath}`);
     spinner.info(`Delta files set up in: ${filesDir}`);
     spinner.info(`Total files: ${packageFiles.length}`);
-    spinner.text = "Uploading to S3...";
+    spinner.text = provider === "r2" ? "Uploading to R2 (Cloudflare)..." : "Uploading to S3...";
     try {
         await (0, s3_uploader_1.uploadToS3)(deployDir, {
             region: publishConfig.region,
             bucket: publishConfig.bucketName,
             path: s3Path,
             makePublic: publishConfig.makePublic !== false,
+            provider,
+            endpoint: publishConfig.endpoint,
+            cacheControl: publishConfig.cacheControl,
         });
         spinner.succeed("Package published successfully!");
         spinner.info(`Package available at: ${baseUrl}`);
         spinner.info(`Manifest URL: ${baseUrl}/manifest.json`);
         spinner.info(`Download URL: ${downloadUrl}`);
+        if (publishConfig.cloudflare?.zoneId) {
+            const tokenEnv = publishConfig.cloudflare.envVariableApiToken || "CF_API_TOKEN";
+            const apiToken = process.env[tokenEnv];
+            if (!apiToken) {
+                spinner.warn(`Cloudflare cache purge skipped: environment variable ${tokenEnv} is not set.`);
+            }
+            else {
+                try {
+                    spinner.text = "Purging Cloudflare cache...";
+                    const purgeUrls = [`${baseUrl}/manifest.json`, downloadUrl, ...(publishConfig.purgeUrls || [])];
+                    const purged = await (0, cloudflare_1.purgeCloudflareCache)({
+                        zoneId: publishConfig.cloudflare.zoneId,
+                        apiToken,
+                        urls: purgeUrls,
+                    });
+                    spinner.info(`Purged Cloudflare cache for ${purged} URL(s).`);
+                }
+                catch (error) {
+                    // The publish itself already succeeded; a purge failure should not fail the run.
+                    spinner.warn(`Cloudflare cache purge failed: ${error instanceof Error ? error.message : "Unknown error"}`);
+                }
+            }
+        }
         const shouldKeepDeploy = keepDeploy || publishConfig.keepDeploy;
         if (shouldKeepDeploy) {
             spinner.info(`Deploy directory preserved at: ${deployDir}`);
@@ -224,7 +266,7 @@ async function handlePublishing(packageEnvironmentPath, packageId, manifest, zip
         }
     }
     catch (error) {
-        spinner.fail(`Failed to upload to S3: ${error instanceof Error ? error.message : "Unknown error"}`);
+        spinner.fail(`Failed to upload to ${provider === "r2" ? "R2" : "S3"}: ${error instanceof Error ? error.message : "Unknown error"}`);
         throw error;
     }
 }
