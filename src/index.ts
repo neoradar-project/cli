@@ -104,9 +104,13 @@ program
 
 program
   .command("build-airways")
-  .description("Build an SQLite airways database from EuroScope airway.txt and isec.txt files")
+  .description(
+    "Build an SQLite airways database from EuroScope airway.txt and isec.txt files. " +
+      "airways.db is a licensed, server-only artifact (Navigraph-derived) — it must never be placed in a package's " +
+      "datasets/ directory, since `distribute` will warn and strip it out if found there anyway."
+  )
   .argument("<navDataPath>", "Path to a directory containing airway.txt and isec.txt")
-  .option("-o, --output <file>", "Output .db path, defaults to <navDataPath>/airways.db")
+  .option("-o, --output <file>", "Output .db path, defaults to <navDataPath>/server-artifacts/airways.db — keep this outside of package/, it is uploaded privately to the server, not shipped to end users")
   .action((navDataPath: string, options: { output?: string }) => {
     buildAirwaysCommand(navDataPath, options.output).catch((err) => {
       console.error(err.message);

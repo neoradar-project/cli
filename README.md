@@ -74,11 +74,13 @@ This will create a polished ZIP file containing your package, the content of whi
 
 ### Building an airways database
 
-`neoradar-cli build-airways ./MyNewPackage/sector_files/NavData -o ./MyNewPackage/package/datasets/airways.db`
+`neoradar-cli build-airways ./MyNewPackage/sector_files/NavData`
 
 The path argument must be a directory containing both `airway.txt` and `isec.txt` (the standard EuroScope NavData layout). The command parses both files and writes a single SQLite database with `waypoints`, `airways`, `direct_segments`, and a `traversable_paths` view ready for route validation.
 
-If `-o` is omitted, the database is written next to the input files as `airways.db`. A typical LFXX dataset (~9 MB airway.txt + ~8 MB isec.txt) builds in roughly 3 seconds.
+If `-o` is omitted, the database is written to `server-artifacts/airways.db` next to the input files. A typical LFXX dataset (~9 MB airway.txt + ~8 MB isec.txt) builds in roughly 3 seconds.
+
+`airways.db` is a **licensed, server-only artifact** (Navigraph-derived) — it is uploaded privately for the NeoRadar server, never shipped inside a distributed package. Do not point `-o` at anything under `package/`: `distribute` defensively warns and strips any `airways.db` it finds inside the package before zipping, but the file should never be produced there in the first place.
 
 ## Development
 

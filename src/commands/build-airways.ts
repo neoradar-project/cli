@@ -392,7 +392,10 @@ export async function buildAirwaysCommand(navDataPath: string, outputPath?: stri
   } else {
     throw new Error(`navDataPath must be a directory containing airway.txt and isec.txt: ${navDataPath}`);
   }
-  const out = outputPath || path.join(navDataPath, "airways.db");
+  // airways.db is Navigraph-derived and server-only (server-link addendum D44/A§11) — default lands next to the
+  // NavData source, never inside a package, so it can't be swept up by `distribute`.
+  const out = outputPath || path.join(navDataPath, "server-artifacts", "airways.db");
+  fs.mkdirSync(path.dirname(out), { recursive: true });
   const t0 = Date.now();
   const result = buildAirwaysDb({ airwayPath, isecPath, outputPath: out });
   const elapsed = ((Date.now() - t0) / 1000).toFixed(1);

@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import Database from "better-sqlite3";
 
-import { buildAirwaysDb, parseAirwayFile } from "../src/commands/build-airways";
+import { buildAirwaysDb, buildAirwaysCommand, parseAirwayFile } from "../src/commands/build-airways";
 
 function makeFixture(): { dir: string; airway: string; isec: string; out: string } {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "neoradar-airways-"));
@@ -123,4 +123,18 @@ test("buildAirwaysDb is idempotent — rebuilding overwrites cleanly", () => {
   assert.equal(aCount, r2.airways, "airway count matches second-pass result, no duplicates from prior run");
   db.close();
   fs.rmSync(fx.dir, { recursive: true, force: true });
+});
+
+test("buildAirwaysCommand defaults output to server-artifacts/, never into a package", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "neoradar-airways-navdata-"));
+  fs.writeFileSync(path.join(dir, "airway.txt"), AIRWAY_SAMPLE);
+  fs.writeFileSync(path.join(dir, "isec.txt"), ISEC_SAMPLE);
+
+  await buildAirwaysCommand(dir);
+
+  const defaultOut = path.join(dir, "server-artifacts", "airways.db");
+  assert.ok(fs.existsSync(defaultOut), "airways.db lands under server-artifacts/ next to the NavData input");
+  assert.ok(!fs.existsSync(path.join(dir, "airways.db")), "airways.db is not dropped directly next to the input");
+
+  fs.rmSync(dir, { recursive: true, force: true });
 });
