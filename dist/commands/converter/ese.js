@@ -26,7 +26,6 @@ class ESEParser {
     async generateNavdata(eseFilePath) {
         try {
             const allNavaids = await this.processNavaids();
-            await this.processRunways();
             const parsedEse = await this.processEseContent(eseFilePath, allNavaids);
             return parsedEse;
         }
@@ -35,6 +34,8 @@ class ESEParser {
             throw error;
         }
     }
+    // Navaids are parsed for the position/procedure derivation only; the client
+    // no longer reads vor/ndb/fix/airport/runway NSE sections so none are emitted.
     async processNavaids() {
         const allNavaids = [];
         for (const type of ESEParser.NAVAID_TYPES) {
@@ -48,7 +49,6 @@ class ESEParser {
                 const processedData = typeData
                     .map(item => this.processNavaidItem(item, type))
                     .filter((item) => item !== null);
-                (0, nse_1.updateNSE)(this.datasetOutputPath, type, processedData);
                 allNavaids.push(...processedData);
             }
             catch (error) {
@@ -94,43 +94,6 @@ class ESEParser {
             (0, logger_1.logESEParsingError)(`Failed to transform coordinates for ${type} navaid ${item.properties.name}: ${error}. Source: ${itemSource}`);
             return null;
         }
-    }
-    async processRunways() {
-        const runwaysFilePath = `${this.datasetOutputPath}/runway.geojson`;
-        if (!fs_1.default.existsSync(runwaysFilePath)) {
-            (0, logger_1.logESEParsingWarning)(`runway.geojson file not found at: ${runwaysFilePath}`);
-            return;
-        }
-        try {
-            const runwaysData = this.readGeoJsonFeatures(runwaysFilePath);
-            const nseRunways = runwaysData
-                .map(item => this.processRunwayItem(item))
-                .filter((item) => item !== null);
-            (0, nse_1.updateNSE)(this.datasetOutputPath, "runway", nseRunways);
-        }
-        catch (error) {
-            (0, logger_1.logESEParsingError)(`Failed to process runway data from ${runwaysFilePath}: ${error}`);
-        }
-    }
-    processRunwayItem(item) {
-        const itemSource = JSON.stringify(item);
-        if (!item.properties?.uuid) {
-            (0, logger_1.logESEParsingError)(`Missing UUID for runway: ${item.properties?.name || 'unnamed'}. Source: ${itemSource}`);
-            return null;
-        }
-        const featureName = (0, utils_1.getFeatureName)(item);
-        if (!featureName) {
-            (0, logger_1.logESEParsingError)(`No valid name found for runway: ${item.properties.name}. Source: ${itemSource}`);
-            return null;
-        }
-        return {
-            id: item.id,
-            name: featureName,
-            oppositeId: item.properties.oppositeId,
-            type: item.properties.type,
-            icao: item.properties.icao,
-            uuid: item.properties.uuid,
-        };
     }
     async processEseContent(eseFilePath, allNavaids) {
         try {

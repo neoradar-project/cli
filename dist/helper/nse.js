@@ -5,6 +5,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.updateNSE = updateNSE;
 const fs_1 = __importDefault(require("fs"));
+// Sections the client no longer reads (local route parser removed). Scrubbed on
+// every write because updateNSE merges into pre-existing nse.json files.
+const RETIRED_SECTIONS = ["vor", "ndb", "fix", "airport", "runway"];
 function updateNSE(datasetsPath, key, newData) {
     try {
         const nsePath = `${datasetsPath}/nse.json`;
@@ -15,6 +18,7 @@ function updateNSE(datasetsPath, key, newData) {
         const nseData = fs_1.default.readFileSync(nsePath, "utf-8");
         const nseJson = JSON.parse(nseData);
         nseJson[key] = newData;
+        RETIRED_SECTIONS.forEach((section) => delete nseJson[section]);
         fs_1.default.writeFileSync(nsePath, JSON.stringify(nseJson));
     }
     catch (e) {
