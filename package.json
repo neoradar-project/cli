@@ -1,6 +1,6 @@
 {
   "name": "neoradar-cli",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "CLI Tool for neoradar for packaging and releasing sector files",
   "main": "dist/index.js",
   "bin": {

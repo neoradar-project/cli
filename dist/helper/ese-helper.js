@@ -74,6 +74,7 @@ class EseHelper {
             procedure: [],
             sectors: [],
             sectorLines: [],
+            copx: [],
         };
         const context = {
             currentSector: this.createEmptySector(),
@@ -176,6 +177,8 @@ class EseHelper {
             ARRAPT: () => this.handleArrApt(line, context),
             ACTIVE: () => this.handleActive(line, context),
             DISPLAY_SECTORLINE: () => this.handleDisplaySectorLine(line, context, result),
+            COPX: () => this.handleCopx(line, result),
+            FIR_COPX: () => this.handleCopx(line, result),
         };
         const prefix = line.split(":")[0];
         const handler = handlers[prefix];
@@ -405,6 +408,52 @@ class EseHelper {
             return;
         }
         context.currentSector.actives.push({ type: "runway", icao, runway });
+    }
+    static handleCopx(line, result) {
+        const copx = this.parseCopx(line);
+        if (copx) {
+            result.copx.push(copx);
+        }
+    }
+    // TYPE:DEP|FIXBEFORE:DEP_RWY:FIX:ARR|FIXAFTER:ARR_RWY:FROM:TO:CLIMB:DESCEND:NAME
+    static parseCopx(line) {
+        const parts = line.split(":");
+        if (parts.length < 11) {
+            (0, logger_1.logESEParsingWarning)(`Invalid COPX line: "${line}"`);
+            return null;
+        }
+        const fix = this.cleanToken(parts[3]);
+        if (!fix) {
+            (0, logger_1.logESEParsingWarning)(`COPX line missing fix: "${line}"`);
+            return null;
+        }
+        return {
+            type: parts[0] === "FIR_COPX" ? "firCopx" : "copx",
+            fix,
+            depBefore: this.copxWildcard(parts[1]),
+            depRwy: this.copxWildcard(parts[2]),
+            arrAfter: this.copxWildcard(parts[4]),
+            arrRwy: this.copxWildcard(parts[5]),
+            fromVolume: this.copxWildcard(parts[6]),
+            toVolume: this.copxWildcard(parts[7]),
+            climbFt: this.copxLevel(parts[8]),
+            descendFt: this.copxLevel(parts[9]),
+            name: this.cleanToken(parts.slice(10).join(":")).replace(/^[\^|]+/, ""),
+        };
+    }
+    static cleanToken(raw) {
+        return (raw ?? "").replace(/[\r�]/g, "").trim();
+    }
+    static copxWildcard(raw) {
+        const v = this.cleanToken(raw);
+        return v === "" || v === "*" ? null : v;
+    }
+    static copxLevel(raw) {
+        const v = this.copxWildcard(raw);
+        if (v === null)
+            return null;
+        const n = Number(v);
+        return isNaN(n) ? null : n;
     }
     static handleDisplaySectorLine(line, context, result) {
         const [borderId, ownedVolume, ...others] = this.splitAndClean(line, "DISPLAY_SECTORLINE");

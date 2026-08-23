@@ -73,6 +73,7 @@ class AtcDataManager {
       alias: {},
       borderLines: {},
       sectors: {},
+      copx: [],
     };
   }
 
@@ -112,8 +113,9 @@ class AtcDataManager {
     atcData.sectors = sectors;
     atcData.borderLines = borderLines;
     atcData.positions = positions;
+    atcData.copx = eseProcessedData.copx;
     this.positionsRef = positions;
-    spinner.info(`Parsed ${Object.keys(sectors).length} sectors and ${Object.keys(borderLines).length} border lines.`);
+    spinner.info(`Parsed ${Object.keys(sectors).length} sectors, ${Object.keys(borderLines).length} border lines, ${eseProcessedData.copx.length} coordination points.`);
   }
 
   private async parseIcaoData(packageEnvironmentPath: string, atcData: ATCData, spinner: Ora): Promise<void> {

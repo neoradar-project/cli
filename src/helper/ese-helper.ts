@@ -2,6 +2,7 @@ import { geoHelper } from "./geo-helper";
 import * as turf from "@turf/turf";
 import { toMercator, toWgs84 } from "@turf/projection";
 import { NseNavaid, PackageAtcPosition, PackageProcedure, Sector, SectorLine } from "../definitions/package-defs";
+import { Copx } from "../definitions/package-atc-data";
 import fs from "fs";
 import { parseAtcPositionLine } from "../commands/converter/nse/atc-position-parser";
 import { parseESEProcedure } from "../commands/converter/nse/procedure-parser";
@@ -12,6 +13,7 @@ export interface ParsedEseContent {
   procedure: PackageProcedure[];
   sectors: Sector[];
   sectorLines: SectorLine[];
+  copx: Copx[];
 }
 
 interface SectorHandlerContext {
@@ -67,6 +69,7 @@ export class EseHelper {
       procedure: [],
       sectors: [],
       sectorLines: [],
+      copx: [],
     };
 
     const context: SectorHandlerContext = {
@@ -185,6 +188,8 @@ export class EseHelper {
       ARRAPT: () => this.handleArrApt(line, context),
       ACTIVE: () => this.handleActive(line, context),
       DISPLAY_SECTORLINE: () => this.handleDisplaySectorLine(line, context, result),
+      COPX: () => this.handleCopx(line, result),
+      FIR_COPX: () => this.handleCopx(line, result),
     };
 
     const prefix = line.split(":")[0];
@@ -452,6 +457,58 @@ export class EseHelper {
       return;
     }
     context.currentSector.actives.push({ type: "runway", icao, runway });
+  }
+
+  private static handleCopx(line: string, result: ParsedEseContent): void {
+    const copx = this.parseCopx(line);
+    if (copx) {
+      result.copx.push(copx);
+    }
+  }
+
+  // TYPE:DEP|FIXBEFORE:DEP_RWY:FIX:ARR|FIXAFTER:ARR_RWY:FROM:TO:CLIMB:DESCEND:NAME
+  private static parseCopx(line: string): Copx | null {
+    const parts = line.split(":");
+    if (parts.length < 11) {
+      logESEParsingWarning(`Invalid COPX line: "${line}"`);
+      return null;
+    }
+
+    const fix = this.cleanToken(parts[3]);
+    if (!fix) {
+      logESEParsingWarning(`COPX line missing fix: "${line}"`);
+      return null;
+    }
+
+    return {
+      type: parts[0] === "FIR_COPX" ? "firCopx" : "copx",
+      fix,
+      depBefore: this.copxWildcard(parts[1]),
+      depRwy: this.copxWildcard(parts[2]),
+      arrAfter: this.copxWildcard(parts[4]),
+      arrRwy: this.copxWildcard(parts[5]),
+      fromVolume: this.copxWildcard(parts[6]),
+      toVolume: this.copxWildcard(parts[7]),
+      climbFt: this.copxLevel(parts[8]),
+      descendFt: this.copxLevel(parts[9]),
+      name: this.cleanToken(parts.slice(10).join(":")).replace(/^[\^|]+/, ""),
+    };
+  }
+
+  private static cleanToken(raw: string | undefined): string {
+    return (raw ?? "").replace(/[\r�]/g, "").trim();
+  }
+
+  private static copxWildcard(raw: string | undefined): string | null {
+    const v = this.cleanToken(raw);
+    return v === "" || v === "*" ? null : v;
+  }
+
+  private static copxLevel(raw: string | undefined): number | null {
+    const v = this.copxWildcard(raw);
+    if (v === null) return null;
+    const n = Number(v);
+    return isNaN(n) ? null : n;
   }
 
   private static handleDisplaySectorLine(line: string, context: SectorHandlerContext, result: ParsedEseContent): void {

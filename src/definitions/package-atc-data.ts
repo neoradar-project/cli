@@ -61,6 +61,21 @@ export interface Sector {
   anchor: string; // "EGLL" "LFFF"
 }
 
+// EuroScope COPX / FIR_COPX. null = wildcard ("*"); array order is priority (first full match wins).
+export interface Copx {
+  type: "copx" | "firCopx";
+  fix: string;
+  depBefore: string | null; // dep airport OR fix-before-COP
+  depRwy: string | null;
+  arrAfter: string | null; // arr airport OR fix-after-COP
+  arrRwy: string | null;
+  fromVolume: string | null;
+  toVolume: string | null;
+  climbFt: number | null;
+  descendFt: number | null;
+  name: string;
+}
+
 // Updated interface to ONLY support arrays of LoginProfiles as values
 export interface NestedLoginProfiles {
   [key: string]: LoginProfiles[];
@@ -75,6 +90,7 @@ export interface ATCData {
   alias: Record<string, string>;
   borderLines: Record<number, BorderLine>;
   sectors: Record<string, Sector>;
+  copx: Copx[];
 }
 
 // Enum for facility types (used for mapping from callsign suffix)
