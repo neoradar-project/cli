@@ -9,6 +9,18 @@ export interface PackageFile {
   isRequired: boolean;
 }
 
+// airways.db is Navigraph-derived and server-only (server-link addendum D44/A§11) — never ship it (or its SQLite
+// WAL/SHM sidecars, which hold live database pages) in a distributed package.
+export const LICENSED_ARTIFACT_EXCLUDE_PATTERNS: RegExp[] = [/(^|[\\/])airways\.db(-wal|-shm|-journal)?$/i];
+
+export function isLicensedArtifactPath(candidatePath: string): boolean {
+  return LICENSED_ARTIFACT_EXCLUDE_PATTERNS.some((pattern) => pattern.test(candidatePath));
+}
+
+export function findLicensedArtifacts(baseDir: string): string[] {
+  return scanDirectoryRecursive(baseDir, "", [], true).filter((relPath) => isLicensedArtifactPath(relPath));
+}
+
 export function scanDirectoryRecursive(baseDir: string, currentDir: string = "", excludePatterns: RegExp[] = [], ignoreHidden: boolean = true): string[] {
   const fullPath = path.join(baseDir, currentDir);
   const entries = fs.readdirSync(fullPath, { withFileTypes: true });

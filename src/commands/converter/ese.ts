@@ -7,9 +7,17 @@ import { getFeatureName } from "../../utils";
 import { updateNSE } from "../../helper/nse";
 import { logESEParsingError, logESEParsingWarning } from "../../helper/logger";
 
+export type NavaidType = "vor" | "ndb" | "fix" | "airport";
+
+export interface EseParseResult {
+    parsedEse: ParsedEseContent;
+    // Package-dead but artifact-alive: not written to nse.json, embedded in server-dataset.json.
+    navaidsByType: Record<NavaidType, NseNavaid[]>;
+}
+
 class ESEParser {
-    private static readonly NAVAID_TYPES = ["vor", "ndb", "fix", "airport"] as const;
-    
+    private static readonly NAVAID_TYPES: readonly NavaidType[] = ["vor", "ndb", "fix", "airport"];
+
     private isGNG = false;
     private datasetOutputPath = "";
     private nsePath = "";
@@ -19,7 +27,7 @@ class ESEParser {
         eseFilePath: string,
         datasetOutputPath: string,
         isGNG: boolean
-    ): Promise<ParsedEseContent | undefined> {
+    ): Promise<EseParseResult | undefined> {
         this.datasetOutputPath = datasetOutputPath;
         this.isGNG = isGNG;
         this.nsePath = `${datasetOutputPath}/nse.json`;
@@ -30,21 +38,23 @@ class ESEParser {
         return parsedEseData;
     }
 
-    private async generateNavdata(eseFilePath: string): Promise<ParsedEseContent | undefined> {
+    private async generateNavdata(eseFilePath: string): Promise<EseParseResult | undefined> {
         try {
-            const allNavaids = await this.processNavaids();
-            await this.processRunways();
+            const navaidsByType = await this.processNavaids();
+            const allNavaids = ESEParser.NAVAID_TYPES.flatMap((type) => navaidsByType[type]);
             const parsedEse = await this.processEseContent(eseFilePath, allNavaids);
 
-            return parsedEse;
+            return parsedEse ? { parsedEse, navaidsByType } : undefined;
         } catch (error) {
             logESEParsingError(`Failed to generate navdata: ${error}`);
             throw error;
         }
     }
 
-    private async processNavaids(): Promise<NseNavaid[]> {
-        const allNavaids: NseNavaid[] = [];
+    // Navaids feed position/procedure derivation and the server-dataset artifact;
+    // the client no longer reads vor/ndb/fix/airport/runway NSE sections so none are emitted.
+    private async processNavaids(): Promise<Record<NavaidType, NseNavaid[]>> {
+        const navaidsByType: Record<NavaidType, NseNavaid[]> = { vor: [], ndb: [], fix: [], airport: [] };
 
         for (const type of ESEParser.NAVAID_TYPES) {
             const filePath = `${this.datasetOutputPath}/${type}.geojson`;
@@ -60,14 +70,13 @@ class ESEParser {
                     .map(item => this.processNavaidItem(item, type))
                     .filter((item): item is NseNavaid => item !== null);
 
-                updateNSE(this.datasetOutputPath, type, processedData);
-                allNavaids.push(...processedData);
+                navaidsByType[type].push(...processedData);
             } catch (error) {
                 logESEParsingError(`Failed to process ${type} navaid data from ${filePath}: ${error}`);
             }
         }
 
-        return allNavaids;
+        return navaidsByType;
     }
 
     private processNavaidItem(item: any, type: string): NseNavaid | null {
@@ -113,50 +122,6 @@ class ESEParser {
             logESEParsingError(`Failed to transform coordinates for ${type} navaid ${item.properties.name}: ${error}. Source: ${itemSource}`);
             return null;
         }
-    }
-
-    private async processRunways(): Promise<void> {
-        const runwaysFilePath = `${this.datasetOutputPath}/runway.geojson`;
-        
-        if (!fs.existsSync(runwaysFilePath)) {
-            logESEParsingWarning(`runway.geojson file not found at: ${runwaysFilePath}`);
-            return;
-        }
-
-        try {
-            const runwaysData = this.readGeoJsonFeatures(runwaysFilePath);
-            const nseRunways = runwaysData
-                .map(item => this.processRunwayItem(item))
-                .filter((item): item is any => item !== null);
-
-            updateNSE(this.datasetOutputPath, "runway", nseRunways);
-        } catch (error) {
-            logESEParsingError(`Failed to process runway data from ${runwaysFilePath}: ${error}`);
-        }
-    }
-
-    private processRunwayItem(item: any): any | null {
-        const itemSource = JSON.stringify(item);
-        
-        if (!item.properties?.uuid) {
-            logESEParsingError(`Missing UUID for runway: ${item.properties?.name || 'unnamed'}. Source: ${itemSource}`);
-            return null;
-        }
-
-        const featureName = getFeatureName(item);
-        if (!featureName) {
-            logESEParsingError(`No valid name found for runway: ${item.properties.name}. Source: ${itemSource}`);
-            return null;
-        }
-
-        return {
-            id: item.id,
-            name: featureName,
-            oppositeId: item.properties.oppositeId,
-            type: item.properties.type,
-            icao: item.properties.icao,
-            uuid: item.properties.uuid,
-        };
     }
 
     private async processEseContent(eseFilePath: string, allNavaids: NseNavaid[]): Promise<ParsedEseContent | undefined> {

@@ -70,12 +70,18 @@ const distributeCommand = async (packageEnvironmentPath, newPackageName, newVers
             fs_1.default.rmSync(tempPackagePath, { recursive: true, force: true });
         }
         fs_1.default.mkdirSync(tempPackagePath, { recursive: true });
+        const licensedArtifacts = (0, file_scanner_1.findLicensedArtifacts)(`${packageEnvironmentPath}/package`);
+        licensedArtifacts.forEach((relPath) => {
+            spinner.warn(`Excluding licensed server-only artifact from package output: ${relPath} — airways.db must not ship in distributed packages (see server-link addendum D44)`);
+        });
         const packageFiles = fs_1.default.readdirSync(`${packageEnvironmentPath}/package`);
         packageFiles.forEach((file) => {
             const sourcePath = `${packageEnvironmentPath}/package/${file}`;
             const destPath = `${tempPackagePath}/${file}`;
+            if ((0, file_scanner_1.isLicensedArtifactPath)(sourcePath))
+                return;
             if (fs_1.default.lstatSync(sourcePath).isDirectory()) {
-                fs_1.default.cpSync(sourcePath, destPath, { recursive: true });
+                fs_1.default.cpSync(sourcePath, destPath, { recursive: true, filter: (src) => !(0, file_scanner_1.isLicensedArtifactPath)(src) });
             }
             else {
                 fs_1.default.copyFileSync(sourcePath, destPath);
@@ -183,7 +189,7 @@ async function handlePublishing(packageEnvironmentPath, packageId, manifest, zip
     const zipChecksum = await (0, checksum_1.calculateZipHash)(deployZipPath);
     spinner.text = "Processing package files for delta updates...";
     const packageDir = path_1.default.join(packageEnvironmentPath, "package");
-    const packageFiles = await (0, file_scanner_1.processAllFiles)(packageDir, [], true);
+    const packageFiles = await (0, file_scanner_1.processAllFiles)(packageDir, file_scanner_1.LICENSED_ARTIFACT_EXCLUDE_PATTERNS, true);
     for (const file of packageFiles) {
         const sourcePath = path_1.default.join(packageDir, file.path);
         const targetPath = path_1.default.join(filesDir, file.path);

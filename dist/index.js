@@ -16,6 +16,7 @@ const path_1 = __importDefault(require("path"));
 const fun_1 = require("./helper/fun");
 const create_plugin_archives_1 = require("./commands/create-plugin-archives");
 const atlas_generator_1 = require("./commands/atlas-generator");
+const build_airways_1 = require("./commands/build-airways");
 console.log(figlet_1.default.textSync("NeoRadar CLI", {
     font: (0, fun_1.isHalloweenWeek)() ? "Ghost" : "Standard",
 }));
@@ -90,6 +91,19 @@ program
     .option("-o, --output <dir>", "Output directory for atlas files (defaults to input folder/atlas)")
     .action((inputFolder, options) => {
     (0, atlas_generator_1.generateAtlas)(inputFolder, options.output);
+});
+program
+    .command("build-airways")
+    .description("Build an SQLite airways database from EuroScope airway.txt and isec.txt files. " +
+    "airways.db is a licensed, server-only artifact (Navigraph-derived) — it must never be placed in a package's " +
+    "datasets/ directory, since `distribute` will warn and strip it out if found there anyway.")
+    .argument("<navDataPath>", "Path to a directory containing airway.txt and isec.txt")
+    .option("-o, --output <file>", "Output .db path, defaults to <navDataPath>/server-artifacts/airways.db — keep this outside of package/, it is uploaded privately to the server, not shipped to end users")
+    .action((navDataPath, options) => {
+    (0, build_airways_1.buildAirwaysCommand)(navDataPath, options.output).catch((err) => {
+        console.error(err.message);
+        process.exit(1);
+    });
 });
 program.parse(process.argv);
 if (!process.argv.slice(2).length) {

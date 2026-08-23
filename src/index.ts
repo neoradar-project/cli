@@ -12,6 +12,7 @@ import path from "path";
 import { isHalloweenWeek } from "./helper/fun";
 import { createPluginArchives } from "./commands/create-plugin-archives";
 import { generateAtlas } from "./commands/atlas-generator";
+import { buildAirwaysCommand } from "./commands/build-airways";
 
 console.log(
   figlet.textSync("NeoRadar CLI", {
@@ -99,6 +100,22 @@ program
   .option("-o, --output <dir>", "Output directory for atlas files (defaults to input folder/atlas)")
   .action((inputFolder: string, options: { output?: string }) => {
     generateAtlas(inputFolder, options.output);
+  });
+
+program
+  .command("build-airways")
+  .description(
+    "Build an SQLite airways database from EuroScope airway.txt and isec.txt files. " +
+      "airways.db is a licensed, server-only artifact (Navigraph-derived) — it must never be placed in a package's " +
+      "datasets/ directory, since `distribute` will warn and strip it out if found there anyway."
+  )
+  .argument("<navDataPath>", "Path to a directory containing airway.txt and isec.txt")
+  .option("-o, --output <file>", "Output .db path, defaults to <navDataPath>/server-artifacts/airways.db — keep this outside of package/, it is uploaded privately to the server, not shipped to end users")
+  .action((navDataPath: string, options: { output?: string }) => {
+    buildAirwaysCommand(navDataPath, options.output).catch((err) => {
+      console.error(err.message);
+      process.exit(1);
+    });
   });
 
 program.parse(process.argv);

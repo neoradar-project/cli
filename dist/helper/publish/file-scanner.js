@@ -3,12 +3,24 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.LICENSED_ARTIFACT_EXCLUDE_PATTERNS = void 0;
+exports.isLicensedArtifactPath = isLicensedArtifactPath;
+exports.findLicensedArtifacts = findLicensedArtifacts;
 exports.scanDirectoryRecursive = scanDirectoryRecursive;
 exports.processAllFiles = processAllFiles;
 exports.calculateTotalSize = calculateTotalSize;
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
 const checksum_1 = require("./checksum");
+// airways.db is Navigraph-derived and server-only (server-link addendum D44/A§11) — never ship it (or its SQLite
+// WAL/SHM sidecars, which hold live database pages) in a distributed package.
+exports.LICENSED_ARTIFACT_EXCLUDE_PATTERNS = [/(^|[\\/])airways\.db(-wal|-shm|-journal)?$/i];
+function isLicensedArtifactPath(candidatePath) {
+    return exports.LICENSED_ARTIFACT_EXCLUDE_PATTERNS.some((pattern) => pattern.test(candidatePath));
+}
+function findLicensedArtifacts(baseDir) {
+    return scanDirectoryRecursive(baseDir, "", [], true).filter((relPath) => isLicensedArtifactPath(relPath));
+}
 function scanDirectoryRecursive(baseDir, currentDir = "", excludePatterns = [], ignoreHidden = true) {
     const fullPath = path_1.default.join(baseDir, currentDir);
     const entries = fs_1.default.readdirSync(fullPath, { withFileTypes: true });

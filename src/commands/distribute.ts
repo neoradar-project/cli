@@ -6,7 +6,7 @@ import { ProviderManifest } from "../definitions/provider-defs";
 import { zip } from "zip-a-folder";
 import { indexer } from "./indexer";
 import { calculateZipHash } from "../helper/publish/checksum";
-import { processAllFiles } from "../helper/publish//file-scanner";
+import { processAllFiles, findLicensedArtifacts, isLicensedArtifactPath, LICENSED_ARTIFACT_EXCLUDE_PATTERNS } from "../helper/publish//file-scanner";
 import { uploadToS3 } from "../helper/publish//s3-uploader";
 import { purgeCloudflareCache } from "../helper/publish/cloudflare";
 import { parseConfig } from "../helper/config";
@@ -85,12 +85,21 @@ export const distributeCommand = async (
     }
 
     fs.mkdirSync(tempPackagePath, { recursive: true });
+
+    const licensedArtifacts = findLicensedArtifacts(`${packageEnvironmentPath}/package`);
+    licensedArtifacts.forEach((relPath) => {
+      spinner.warn(
+        `Excluding licensed server-only artifact from package output: ${relPath} — airways.db must not ship in distributed packages (see server-link addendum D44)`
+      );
+    });
+
     const packageFiles = fs.readdirSync(`${packageEnvironmentPath}/package`);
     packageFiles.forEach((file) => {
       const sourcePath = `${packageEnvironmentPath}/package/${file}`;
       const destPath = `${tempPackagePath}/${file}`;
+      if (isLicensedArtifactPath(sourcePath)) return;
       if (fs.lstatSync(sourcePath).isDirectory()) {
-        fs.cpSync(sourcePath, destPath, { recursive: true });
+        fs.cpSync(sourcePath, destPath, { recursive: true, filter: (src) => !isLicensedArtifactPath(src) });
       } else {
         fs.copyFileSync(sourcePath, destPath);
       }
@@ -229,7 +238,7 @@ async function handlePublishing(
   spinner.text = "Processing package files for delta updates...";
 
   const packageDir = path.join(packageEnvironmentPath, "package");
-  const packageFiles = await processAllFiles(packageDir, [], true);
+  const packageFiles = await processAllFiles(packageDir, LICENSED_ARTIFACT_EXCLUDE_PATTERNS, true);
 
   for (const file of packageFiles) {
     const sourcePath = path.join(packageDir, file.path);

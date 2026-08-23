@@ -12,6 +12,7 @@ Currently, the CLI allows you to:
 - Convert ES Alises to NeoRadar format
 - Convert ICAO Aircrafts and ICAO Airlines to NeoRadar format
 - Index all your geojson features into NeoRadar's map index in the NSE
+- Build an SQLite airways database from EuroScope `airway.txt` and `isec.txt`
 
 It will soon cover conversions of TopSky Maps to NeoRadar.
 
@@ -21,9 +22,9 @@ See the manual of the tool with neoradar-cli help
 
 ### Installation
 
-The CLI requires NodeJS 22 as an environment, see NodeJS installation guides for help.
+The CLI requires NodeJS 24 and pnpm 10, see NodeJS installation guides for help.
 
-Install the CLI tool: npm install -g github:neoradar-project/cli
+Install the CLI tool: pnpm add -g github:neoradar-project/cli
 
 ### Creating the new environment
 
@@ -121,3 +122,17 @@ Notes for R2:
 - The optional `cloudflare` block purges the manifest (and download URL) from Cloudflare's cache after each publish so clients see the update immediately. The token needs **Zone → Cache Purge**. Add extra URLs to purge (e.g. a top-level `providers.json`) via `"purgeUrls": ["https://pkg.neoradar.app/providers.json"]`.
 
 **Caching:** `manifest.json` is always uploaded `no-cache` so update checks see fresh data. Every other file uses `cacheControl` (default `no-cache`). Only set a long `cacheControl` (e.g. `"public, max-age=31536000, immutable"`) if your file paths are versioned/immutable — the default delta layout overwrites files in place, where long caching would serve stale content.
+
+### Building an airways database
+
+`neoradar-cli build-airways ./MyNewPackage/sector_files/NavData`
+
+The path argument must be a directory containing both `airway.txt` and `isec.txt` (the standard EuroScope NavData layout). The command parses both files and writes a single SQLite database with `waypoints`, `airways`, `direct_segments`, and a `traversable_paths` view ready for route validation.
+
+If `-o` is omitted, the database is written to `server-artifacts/airways.db` next to the input files. A typical LFXX dataset (~9 MB airway.txt + ~8 MB isec.txt) builds in roughly 3 seconds.
+
+`airways.db` is a **licensed, server-only artifact** (Navigraph-derived) — it is uploaded privately for the NeoRadar server, never shipped inside a distributed package. Do not point `-o` at anything under `package/`: `distribute` defensively warns and strips any `airways.db` it finds inside the package before zipping, but the file should never be produced there in the first place.
+
+## Development
+
+Run the test suite with `pnpm test` (uses the built-in `node:test` runner).

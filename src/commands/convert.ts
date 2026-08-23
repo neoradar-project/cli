@@ -4,7 +4,8 @@ import { askForConfirmation, fileFilesWithExtension as findFilesWithExtension } 
 import ora from "ora";
 import { cliParseSCTESE, cliParseSingleSCT } from "./converter/sct";
 import { indexer } from "./indexer";
-import { eseParser } from "./converter/ese";
+import { EseParseResult, eseParser } from "./converter/ese";
+import { emitServerDataset } from "../helper/server-dataset";
 import { parseConfig } from "../helper/config";
 import { eseParsingErrorCount, sctParsingErrorCount } from "../helper/logger";
 import { atcData } from "./converter/atc-data-parser";
@@ -22,7 +23,7 @@ const convertSCT2AndESEFiles = async (sectorFilesPath: string, datasetsOutputPat
 
   let sctFilePath: string | undefined;
   let eseFilePath: string | undefined;
-  let parsedESE;
+  let eseResult: EseParseResult | undefined;
 
   // Process SCT2 files
   if (sctFiles.length === 0) {
@@ -58,7 +59,7 @@ const convertSCT2AndESEFiles = async (sectorFilesPath: string, datasetsOutputPat
     const config = parseConfig(`${sectorFilesPath}/../`);
 
     try {
-      parsedESE = await eseParser.start(eseSpinner, eseFilePath, datasetsOutputPath, config?.sectorFileFromGNG || false);
+      eseResult = await eseParser.start(eseSpinner, eseFilePath, datasetsOutputPath, config?.sectorFileFromGNG || false);
 
       if (eseParsingErrorCount > 0) {
         eseSpinner.warn(`ESE parsing completed with ${eseParsingErrorCount} errors. Check logs for details.`);
@@ -70,7 +71,7 @@ const convertSCT2AndESEFiles = async (sectorFilesPath: string, datasetsOutputPat
     }
   }
 
-  return parsedESE;
+  return eseResult;
 };
 
 const convertASRFolder = async (packagePath: string) => {
@@ -221,6 +222,7 @@ export const convert = async (packagePath: string, skipProfiles: boolean) => {
     "   • Override existing package symbol data\n" +
     "   • Override the atc-data file\n" +
     (skipProfiles ? "" : "   • Override existing STP profiles\n") +
+    "   • Override server-dataset.json next to the package folder\n" +
     "   • Add missing layers to the manifest\n" +
     "   • Index all elements overriding the index in the NSE\n" +
     "IT WILL NOT:\n" +
@@ -240,15 +242,32 @@ export const convert = async (packagePath: string, skipProfiles: boolean) => {
   const sectorFilesPath = `${packagePath}/sector_files`;
   const datasetsOutputPath = `${packagePath}/package/datasets`;
 
-  const parsedESE = await convertSCT2AndESEFiles(sectorFilesPath, datasetsOutputPath);
+  const eseResult = await convertSCT2AndESEFiles(sectorFilesPath, datasetsOutputPath);
   if (!skipProfiles) {
     await convertASRFolder(packagePath);
   }
   await convertAtlasFolder(packagePath);
-  await atcData.parseAtcdata(packagePath, parsedESE);
+  const parsedAtcData = await atcData.parseAtcdata(packagePath, eseResult?.parsedEse);
 
   // Running the indexer after conversion
   await indexer(packagePath, `${datasetsOutputPath}/nse.json`, true);
+
+  if (eseResult) {
+    const artifactSpinner = ora("Writing server dataset artifact...").start();
+    try {
+      const artifactPath = emitServerDataset(packagePath, parsedAtcData, {
+        position: eseResult.parsedEse.position,
+        procedure: eseResult.parsedEse.procedure,
+        vor: eseResult.navaidsByType.vor,
+        ndb: eseResult.navaidsByType.ndb,
+        fix: eseResult.navaidsByType.fix,
+        airport: eseResult.navaidsByType.airport,
+      });
+      artifactSpinner.succeed(`Server dataset artifact written to ${artifactPath}`);
+    } catch (error) {
+      artifactSpinner.fail(`Failed to write server dataset artifact: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
+  }
 
   console.log(`Conversion completed for package environment at path: ${packagePath}`);
 };
