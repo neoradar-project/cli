@@ -48,6 +48,7 @@ class AtcDataManager {
             else {
                 spinner.succeed("ATC data parsing completed successfully.");
             }
+            return atcData;
         }
         catch (error) {
             spinner.fail("ATC data parsing failed.");

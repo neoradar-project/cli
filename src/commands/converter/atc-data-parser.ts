@@ -39,7 +39,7 @@ class AtcDataManager {
     output: "package/datasets/atc-data.json",
   } as const;
 
-  public async parseAtcdata(packageEnvironmentPath: string, eseProcessedData?: ParsedEseContent | undefined): Promise<void> {
+  public async parseAtcdata(packageEnvironmentPath: string, eseProcessedData?: ParsedEseContent | undefined): Promise<ATCData> {
     const spinner = ora("Parsing ATC data...").start();
 
     try {
@@ -58,6 +58,8 @@ class AtcDataManager {
       } else {
         spinner.succeed("ATC data parsing completed successfully.");
       }
+
+      return atcData;
     } catch (error) {
       spinner.fail("ATC data parsing failed.");
       throw error;

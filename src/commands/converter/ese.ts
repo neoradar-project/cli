@@ -7,9 +7,17 @@ import { getFeatureName } from "../../utils";
 import { updateNSE } from "../../helper/nse";
 import { logESEParsingError, logESEParsingWarning } from "../../helper/logger";
 
+export type NavaidType = "vor" | "ndb" | "fix" | "airport";
+
+export interface EseParseResult {
+    parsedEse: ParsedEseContent;
+    // Package-dead but artifact-alive: not written to nse.json, embedded in server-dataset.json.
+    navaidsByType: Record<NavaidType, NseNavaid[]>;
+}
+
 class ESEParser {
-    private static readonly NAVAID_TYPES = ["vor", "ndb", "fix", "airport"] as const;
-    
+    private static readonly NAVAID_TYPES: readonly NavaidType[] = ["vor", "ndb", "fix", "airport"];
+
     private isGNG = false;
     private datasetOutputPath = "";
     private nsePath = "";
@@ -19,7 +27,7 @@ class ESEParser {
         eseFilePath: string,
         datasetOutputPath: string,
         isGNG: boolean
-    ): Promise<ParsedEseContent | undefined> {
+    ): Promise<EseParseResult | undefined> {
         this.datasetOutputPath = datasetOutputPath;
         this.isGNG = isGNG;
         this.nsePath = `${datasetOutputPath}/nse.json`;
@@ -30,22 +38,23 @@ class ESEParser {
         return parsedEseData;
     }
 
-    private async generateNavdata(eseFilePath: string): Promise<ParsedEseContent | undefined> {
+    private async generateNavdata(eseFilePath: string): Promise<EseParseResult | undefined> {
         try {
-            const allNavaids = await this.processNavaids();
+            const navaidsByType = await this.processNavaids();
+            const allNavaids = ESEParser.NAVAID_TYPES.flatMap((type) => navaidsByType[type]);
             const parsedEse = await this.processEseContent(eseFilePath, allNavaids);
 
-            return parsedEse;
+            return parsedEse ? { parsedEse, navaidsByType } : undefined;
         } catch (error) {
             logESEParsingError(`Failed to generate navdata: ${error}`);
             throw error;
         }
     }
 
-    // Navaids are parsed for the position/procedure derivation only; the client
-    // no longer reads vor/ndb/fix/airport/runway NSE sections so none are emitted.
-    private async processNavaids(): Promise<NseNavaid[]> {
-        const allNavaids: NseNavaid[] = [];
+    // Navaids feed position/procedure derivation and the server-dataset artifact;
+    // the client no longer reads vor/ndb/fix/airport/runway NSE sections so none are emitted.
+    private async processNavaids(): Promise<Record<NavaidType, NseNavaid[]>> {
+        const navaidsByType: Record<NavaidType, NseNavaid[]> = { vor: [], ndb: [], fix: [], airport: [] };
 
         for (const type of ESEParser.NAVAID_TYPES) {
             const filePath = `${this.datasetOutputPath}/${type}.geojson`;
@@ -61,13 +70,13 @@ class ESEParser {
                     .map(item => this.processNavaidItem(item, type))
                     .filter((item): item is NseNavaid => item !== null);
 
-                allNavaids.push(...processedData);
+                navaidsByType[type].push(...processedData);
             } catch (error) {
                 logESEParsingError(`Failed to process ${type} navaid data from ${filePath}: ${error}`);
             }
         }
 
-        return allNavaids;
+        return navaidsByType;
     }
 
     private processNavaidItem(item: any, type: string): NseNavaid | null {

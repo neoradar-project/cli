@@ -25,19 +25,20 @@ class ESEParser {
     }
     async generateNavdata(eseFilePath) {
         try {
-            const allNavaids = await this.processNavaids();
+            const navaidsByType = await this.processNavaids();
+            const allNavaids = ESEParser.NAVAID_TYPES.flatMap((type) => navaidsByType[type]);
             const parsedEse = await this.processEseContent(eseFilePath, allNavaids);
-            return parsedEse;
+            return parsedEse ? { parsedEse, navaidsByType } : undefined;
         }
         catch (error) {
             (0, logger_1.logESEParsingError)(`Failed to generate navdata: ${error}`);
             throw error;
         }
     }
-    // Navaids are parsed for the position/procedure derivation only; the client
-    // no longer reads vor/ndb/fix/airport/runway NSE sections so none are emitted.
+    // Navaids feed position/procedure derivation and the server-dataset artifact;
+    // the client no longer reads vor/ndb/fix/airport/runway NSE sections so none are emitted.
     async processNavaids() {
-        const allNavaids = [];
+        const navaidsByType = { vor: [], ndb: [], fix: [], airport: [] };
         for (const type of ESEParser.NAVAID_TYPES) {
             const filePath = `${this.datasetOutputPath}/${type}.geojson`;
             if (!fs_1.default.existsSync(filePath)) {
@@ -49,13 +50,13 @@ class ESEParser {
                 const processedData = typeData
                     .map(item => this.processNavaidItem(item, type))
                     .filter((item) => item !== null);
-                allNavaids.push(...processedData);
+                navaidsByType[type].push(...processedData);
             }
             catch (error) {
                 (0, logger_1.logESEParsingError)(`Failed to process ${type} navaid data from ${filePath}: ${error}`);
             }
         }
-        return allNavaids;
+        return navaidsByType;
     }
     processNavaidItem(item, type) {
         const itemSource = JSON.stringify(item);

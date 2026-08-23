@@ -11,6 +11,7 @@ const ora_1 = __importDefault(require("ora"));
 const sct_1 = require("./converter/sct");
 const indexer_1 = require("./indexer");
 const ese_1 = require("./converter/ese");
+const server_dataset_1 = require("../helper/server-dataset");
 const config_1 = require("../helper/config");
 const logger_1 = require("../helper/logger");
 const atc_data_parser_1 = require("./converter/atc-data-parser");
@@ -24,7 +25,7 @@ const convertSCT2AndESEFiles = async (sectorFilesPath, datasetsOutputPath) => {
     const eseFiles = (0, utils_1.fileFilesWithExtension)(sectorFilesPath, [".ese"]);
     let sctFilePath;
     let eseFilePath;
-    let parsedESE;
+    let eseResult;
     // Process SCT2 files
     if (sctFiles.length === 0) {
         sctSpinner.fail("No SCT2 files found, skipping SCT2 conversion.");
@@ -57,7 +58,7 @@ const convertSCT2AndESEFiles = async (sectorFilesPath, datasetsOutputPath) => {
         }
         const config = (0, config_1.parseConfig)(`${sectorFilesPath}/../`);
         try {
-            parsedESE = await ese_1.eseParser.start(eseSpinner, eseFilePath, datasetsOutputPath, config?.sectorFileFromGNG || false);
+            eseResult = await ese_1.eseParser.start(eseSpinner, eseFilePath, datasetsOutputPath, config?.sectorFileFromGNG || false);
             if (logger_1.eseParsingErrorCount > 0) {
                 eseSpinner.warn(`ESE parsing completed with ${logger_1.eseParsingErrorCount} errors. Check logs for details.`);
             }
@@ -69,7 +70,7 @@ const convertSCT2AndESEFiles = async (sectorFilesPath, datasetsOutputPath) => {
             eseSpinner.fail(`Error during ESE conversion: ${error instanceof Error ? error.message : "Unknown error"}`);
         }
     }
-    return parsedESE;
+    return eseResult;
 };
 const convertASRFolder = async (packagePath) => {
     const spinner = (0, ora_1.default)("Finding ASR files...").start();
@@ -204,6 +205,7 @@ const convert = async (packagePath, skipProfiles) => {
         "   • Override existing package symbol data\n" +
         "   • Override the atc-data file\n" +
         (skipProfiles ? "" : "   • Override existing STP profiles\n") +
+        "   • Override server-dataset.json next to the package folder\n" +
         "   • Add missing layers to the manifest\n" +
         "   • Index all elements overriding the index in the NSE\n" +
         "IT WILL NOT:\n" +
@@ -219,14 +221,31 @@ const convert = async (packagePath, skipProfiles) => {
     // We first look for the SCT2 file in the package path
     const sectorFilesPath = `${packagePath}/sector_files`;
     const datasetsOutputPath = `${packagePath}/package/datasets`;
-    const parsedESE = await convertSCT2AndESEFiles(sectorFilesPath, datasetsOutputPath);
+    const eseResult = await convertSCT2AndESEFiles(sectorFilesPath, datasetsOutputPath);
     if (!skipProfiles) {
         await convertASRFolder(packagePath);
     }
     await convertAtlasFolder(packagePath);
-    await atc_data_parser_1.atcData.parseAtcdata(packagePath, parsedESE);
+    const parsedAtcData = await atc_data_parser_1.atcData.parseAtcdata(packagePath, eseResult?.parsedEse);
     // Running the indexer after conversion
     await (0, indexer_1.indexer)(packagePath, `${datasetsOutputPath}/nse.json`, true);
+    if (eseResult) {
+        const artifactSpinner = (0, ora_1.default)("Writing server dataset artifact...").start();
+        try {
+            const artifactPath = (0, server_dataset_1.emitServerDataset)(packagePath, parsedAtcData, {
+                position: eseResult.parsedEse.position,
+                procedure: eseResult.parsedEse.procedure,
+                vor: eseResult.navaidsByType.vor,
+                ndb: eseResult.navaidsByType.ndb,
+                fix: eseResult.navaidsByType.fix,
+                airport: eseResult.navaidsByType.airport,
+            });
+            artifactSpinner.succeed(`Server dataset artifact written to ${artifactPath}`);
+        }
+        catch (error) {
+            artifactSpinner.fail(`Failed to write server dataset artifact: ${error instanceof Error ? error.message : "Unknown error"}`);
+        }
+    }
     console.log(`Conversion completed for package environment at path: ${packagePath}`);
 };
 exports.convert = convert;
