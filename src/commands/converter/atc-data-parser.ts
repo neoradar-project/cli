@@ -518,6 +518,8 @@ class AtcDataManager {
       identifier,
       frequency,
       activeAirports: [],
+      departureAirports: [],
+      arrivalAirports: [],
       facility,
       anchor,
     };
@@ -537,6 +539,8 @@ class AtcDataManager {
 
   private addVolumesToSector(relatedSectors: ParsedEseContentSector[], sector: Sector): void {
     const activeAirports = new Set<string>();
+    const departureAirports = new Set<string>();
+    const arrivalAirports = new Set<string>();
 
     for (const relatedSector of relatedSectors) {
       const volume: Volume = {
@@ -550,16 +554,24 @@ class AtcDataManager {
 
       // Collect active airports
       if (relatedSector.depApts?.length > 0) {
-        relatedSector.depApts.forEach((apt: string) => activeAirports.add(apt));
+        relatedSector.depApts.forEach((apt: string) => {
+          activeAirports.add(apt);
+          departureAirports.add(apt);
+        });
       }
       if (relatedSector.arrApts?.length > 0) {
-        relatedSector.arrApts.forEach((apt: string) => activeAirports.add(apt));
+        relatedSector.arrApts.forEach((apt: string) => {
+          activeAirports.add(apt);
+          arrivalAirports.add(apt);
+        });
       }
 
       sector.volumes.push(volume);
     }
 
     sector.activeAirports = Array.from(activeAirports);
+    sector.departureAirports = Array.from(departureAirports);
+    sector.arrivalAirports = Array.from(arrivalAirports);
   }
 
   private createEmptySectorsForRemainingPositions(
@@ -586,6 +598,8 @@ class AtcDataManager {
         identifier,
         frequency,
         activeAirports: [],
+        departureAirports: [],
+        arrivalAirports: [],
         facility,
         anchor,
       };

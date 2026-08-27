@@ -427,6 +427,8 @@ class AtcDataManager {
             identifier,
             frequency,
             activeAirports: [],
+            departureAirports: [],
+            arrivalAirports: [],
             facility,
             anchor,
         };
@@ -443,6 +445,8 @@ class AtcDataManager {
     }
     addVolumesToSector(relatedSectors, sector) {
         const activeAirports = new Set();
+        const departureAirports = new Set();
+        const arrivalAirports = new Set();
         for (const relatedSector of relatedSectors) {
             const volume = {
                 id: relatedSector.name,
@@ -454,14 +458,22 @@ class AtcDataManager {
             };
             // Collect active airports
             if (relatedSector.depApts?.length > 0) {
-                relatedSector.depApts.forEach((apt) => activeAirports.add(apt));
+                relatedSector.depApts.forEach((apt) => {
+                    activeAirports.add(apt);
+                    departureAirports.add(apt);
+                });
             }
             if (relatedSector.arrApts?.length > 0) {
-                relatedSector.arrApts.forEach((apt) => activeAirports.add(apt));
+                relatedSector.arrApts.forEach((apt) => {
+                    activeAirports.add(apt);
+                    arrivalAirports.add(apt);
+                });
             }
             sector.volumes.push(volume);
         }
         sector.activeAirports = Array.from(activeAirports);
+        sector.departureAirports = Array.from(departureAirports);
+        sector.arrivalAirports = Array.from(arrivalAirports);
     }
     createEmptySectorsForRemainingPositions(parsedEseContent, sectors, positions, completedIdentifiers, sectorIdCounter) {
         parsedEseContent.position.forEach((pos) => {
@@ -479,6 +491,8 @@ class AtcDataManager {
                 identifier,
                 frequency,
                 activeAirports: [],
+                departureAirports: [],
+                arrivalAirports: [],
                 facility,
                 anchor,
             };

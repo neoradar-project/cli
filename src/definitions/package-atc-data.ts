@@ -57,6 +57,8 @@ export interface Sector {
   identifier: string; // "LLN" "LS"
   frequency: number;
   activeAirports: string[];
+  departureAirports: string[];
+  arrivalAirports: string[];
   facility: number;
   anchor: string; // "EGLL" "LFFF"
 }
