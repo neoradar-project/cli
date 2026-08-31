@@ -172,8 +172,13 @@ class AtcDataManager {
     async writeAtcData(packageEnvironmentPath, atcData, spinner) {
         spinner.text = "Writing ATC data...";
         const outputFilePath = path_1.default.resolve(packageEnvironmentPath, this.PATHS.output);
+        // copx is server-only: the client's coordination computation moved server-side (spec D5),
+        // and nothing in the client reads AtcData.Copx any more. It is ~26% of atc-data, so it is
+        // dropped from the PACKAGED copy only - emitServerDataset still receives the full object,
+        // and the server resolves coordination from it.
+        const { copx: _serverOnlyCopx, ...packagedAtcData } = atcData;
         try {
-            await fs_1.default.promises.writeFile(outputFilePath, JSON.stringify(atcData), "utf-8");
+            await fs_1.default.promises.writeFile(outputFilePath, JSON.stringify(packagedAtcData), "utf-8");
         }
         catch (error) {
             (0, logger_1.logATCDataParsingError)(`Failed to write ATC data to ${outputFilePath}: ${error}`);
