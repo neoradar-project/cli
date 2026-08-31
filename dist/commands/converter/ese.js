@@ -100,7 +100,11 @@ class ESEParser {
         try {
             const eseProcessedData = await ese_helper_1.EseHelper.parseEseContent(eseFilePath, allNavaids, this.isGNG);
             (0, nse_1.updateNSE)(this.datasetOutputPath, "position", eseProcessedData.position);
-            (0, nse_1.updateNSE)(this.datasetOutputPath, "procedure", eseProcessedData.procedure);
+            // procedure is deliberately NOT written into the packaged nse: the client receives
+            // the catalog on the config channel (configSnapshot/configDelta), so a SID/STAR
+            // change reaches a connected picker on the vAcc's next publish instead of waiting
+            // for a package release. eseProcessedData.procedure still feeds emitServerDataset,
+            // which is where the server gets it.
             return eseProcessedData;
         }
         catch (error) {
