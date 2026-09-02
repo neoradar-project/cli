@@ -11,6 +11,7 @@ import { eseParsingErrorCount, sctParsingErrorCount } from "../helper/logger";
 import { atcData } from "./converter/atc-data-parser";
 import AsrFolderConverter from "./converter/asr";
 import { generateAtlas } from "./atlas-generator";
+import { assertNoLicensedArtifacts } from "../helper/publish/file-scanner";
 
 const convertSCT2AndESEFiles = async (sectorFilesPath: string, datasetsOutputPath: string) => {
   const sctSpinner = ora("Finding SCT2...").start();
@@ -214,6 +215,14 @@ const convertAtlasFolder = async (packagePath: string) => {
 
 export const convert = async (packagePath: string, skipProfiles: boolean) => {
   console.log(`Starting conversion for package environment at path: ${packagePath}`);
+
+  try {
+    assertNoLicensedArtifacts(path.join(packagePath, "package"), "Conversion");
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exitCode = 1;
+    return;
+  }
 
   const confirmMessage =
     "\n⚠️  CAUTION: This operation will:\n" +

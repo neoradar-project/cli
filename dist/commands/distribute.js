@@ -21,6 +21,14 @@ const distributeCommand = async (packageEnvironmentPath, newPackageName, newVers
         return spinner.fail(`Manifest file not found at ${manifestPath}. Please ensure the package environment is set up correctly.`);
     }
     try {
+        (0, file_scanner_1.assertNoLicensedArtifacts)(`${packageEnvironmentPath}/package`, "Distribution");
+    }
+    catch (error) {
+        spinner.fail(error instanceof Error ? error.message : String(error));
+        process.exitCode = 1;
+        return;
+    }
+    try {
         if (!skipIndexing) {
             spinner.text = `Running the indexer...`;
             await (0, indexer_1.indexer)(packageEnvironmentPath, undefined, true);
@@ -70,18 +78,15 @@ const distributeCommand = async (packageEnvironmentPath, newPackageName, newVers
             fs_1.default.rmSync(tempPackagePath, { recursive: true, force: true });
         }
         fs_1.default.mkdirSync(tempPackagePath, { recursive: true });
-        const licensedArtifacts = (0, file_scanner_1.findLicensedArtifacts)(`${packageEnvironmentPath}/package`);
-        licensedArtifacts.forEach((relPath) => {
-            spinner.warn(`Excluding licensed server-only artifact from package output: ${relPath} — airways.db must not ship in distributed packages (see server-link addendum D44)`);
-        });
+        // Second line of defence behind the refusal above: a licensed database never reaches the zip.
         const packageFiles = fs_1.default.readdirSync(`${packageEnvironmentPath}/package`);
         packageFiles.forEach((file) => {
             const sourcePath = `${packageEnvironmentPath}/package/${file}`;
             const destPath = `${tempPackagePath}/${file}`;
-            if ((0, file_scanner_1.isLicensedArtifactPath)(sourcePath))
+            if ((0, file_scanner_1.isLicensedArtifact)(sourcePath))
                 return;
             if (fs_1.default.lstatSync(sourcePath).isDirectory()) {
-                fs_1.default.cpSync(sourcePath, destPath, { recursive: true, filter: (src) => !(0, file_scanner_1.isLicensedArtifactPath)(src) });
+                fs_1.default.cpSync(sourcePath, destPath, { recursive: true, filter: (src) => !(0, file_scanner_1.isLicensedArtifact)(src) });
             }
             else {
                 fs_1.default.copyFileSync(sourcePath, destPath);

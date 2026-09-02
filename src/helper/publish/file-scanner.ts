@@ -9,16 +9,61 @@ export interface PackageFile {
   isRequired: boolean;
 }
 
-// airways.db is Navigraph-derived and server-only (server-link addendum D44/A§11) — never ship it (or its SQLite
-// WAL/SHM sidecars, which hold live database pages) in a distributed package.
-export const LICENSED_ARTIFACT_EXCLUDE_PATTERNS: RegExp[] = [/(^|[\\/])airways\.db(-wal|-shm|-journal)?$/i];
+// airways.db and navdata.db are Navigraph-derived and server-only. They must never reach a package folder or a
+// distributed zip, nor may their SQLite WAL/SHM sidecars, which hold live database pages.
+export const LICENSED_ARTIFACT_EXCLUDE_PATTERNS: RegExp[] = [
+  /(^|[\\/])airways\.db(-wal|-shm|-journal)?$/i,
+  /(^|[\\/])navdata\.db(-wal|-shm|-journal)?$/i,
+];
+
+const SQLITE_MAGIC = Buffer.from("SQLite format 3\0", "latin1");
 
 export function isLicensedArtifactPath(candidatePath: string): boolean {
   return LICENSED_ARTIFACT_EXCLUDE_PATTERNS.some((pattern) => pattern.test(candidatePath));
 }
 
+// Filename alone is not enough: a renamed database still carries its header.
+export function hasSqliteMagic(fullPath: string): boolean {
+  let fd: number | undefined;
+  try {
+    fd = fs.openSync(fullPath, "r");
+    const head = Buffer.alloc(SQLITE_MAGIC.length);
+    const read = fs.readSync(fd, head, 0, SQLITE_MAGIC.length, 0);
+    return read === SQLITE_MAGIC.length && head.equals(SQLITE_MAGIC);
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === "ENOENT" || code === "EISDIR") return false;
+    throw error;
+  } finally {
+    if (fd !== undefined) fs.closeSync(fd);
+  }
+}
+
+export function isLicensedArtifactFile(baseDir: string, relPath: string): boolean {
+  return isLicensedArtifactPath(relPath) || hasSqliteMagic(path.join(baseDir, relPath));
+}
+
+// Same test for a path already absolute, e.g. inside an fs.cpSync filter.
+export function isLicensedArtifact(fullPath: string): boolean {
+  return isLicensedArtifactPath(fullPath) || hasSqliteMagic(fullPath);
+}
+
 export function findLicensedArtifacts(baseDir: string): string[] {
-  return scanDirectoryRecursive(baseDir, "", [], true).filter((relPath) => isLicensedArtifactPath(relPath));
+  if (!fs.existsSync(baseDir)) return [];
+  return scanDirectoryRecursive(baseDir, "", [], true).filter((relPath) => isLicensedArtifactFile(baseDir, relPath));
+}
+
+// Hard refusal: stop rather than let a build carry licensed data forward.
+export function assertNoLicensedArtifacts(baseDir: string, context: string): void {
+  const hits = findLicensedArtifacts(baseDir);
+  if (hits.length === 0) return;
+
+  throw new Error(
+    `${context} refused: licensed server-only database files found under ${baseDir}:\n` +
+      hits.map((relPath) => `  ${relPath}`).join("\n") +
+      `\nThese are Navigraph-derived and must not ship in a package. Move them outside the package folder ` +
+      `(build-airways writes to server-artifacts/ by default) and re-run.`
+  );
 }
 
 export function scanDirectoryRecursive(baseDir: string, currentDir: string = "", excludePatterns: RegExp[] = [], ignoreHidden: boolean = true): string[] {

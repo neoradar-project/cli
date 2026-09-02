@@ -1,0 +1,3 @@
+# tsc writes LF. Without this pin, a core.autocrlf=true clone shows the whole
+# committed dist/ as modified even when the content is byte-identical.
+dist/** text eol=lf

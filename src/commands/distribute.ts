@@ -6,7 +6,7 @@ import { ProviderManifest } from "../definitions/provider-defs";
 import { zip } from "zip-a-folder";
 import { indexer } from "./indexer";
 import { calculateZipHash } from "../helper/publish/checksum";
-import { processAllFiles, findLicensedArtifacts, isLicensedArtifactPath, LICENSED_ARTIFACT_EXCLUDE_PATTERNS } from "../helper/publish//file-scanner";
+import { processAllFiles, assertNoLicensedArtifacts, isLicensedArtifact, LICENSED_ARTIFACT_EXCLUDE_PATTERNS } from "../helper/publish//file-scanner";
 import { uploadToS3 } from "../helper/publish//s3-uploader";
 import { purgeCloudflareCache } from "../helper/publish/cloudflare";
 import { parseConfig } from "../helper/config";
@@ -24,6 +24,14 @@ export const distributeCommand = async (
   const manifestPath = `${packageEnvironmentPath}/package/manifest.json`;
   if (!fs.existsSync(manifestPath)) {
     return spinner.fail(`Manifest file not found at ${manifestPath}. Please ensure the package environment is set up correctly.`);
+  }
+
+  try {
+    assertNoLicensedArtifacts(`${packageEnvironmentPath}/package`, "Distribution");
+  } catch (error) {
+    spinner.fail(error instanceof Error ? error.message : String(error));
+    process.exitCode = 1;
+    return;
   }
 
   try {
@@ -86,20 +94,14 @@ export const distributeCommand = async (
 
     fs.mkdirSync(tempPackagePath, { recursive: true });
 
-    const licensedArtifacts = findLicensedArtifacts(`${packageEnvironmentPath}/package`);
-    licensedArtifacts.forEach((relPath) => {
-      spinner.warn(
-        `Excluding licensed server-only artifact from package output: ${relPath} — airways.db must not ship in distributed packages (see server-link addendum D44)`
-      );
-    });
-
+    // Second line of defence behind the refusal above: a licensed database never reaches the zip.
     const packageFiles = fs.readdirSync(`${packageEnvironmentPath}/package`);
     packageFiles.forEach((file) => {
       const sourcePath = `${packageEnvironmentPath}/package/${file}`;
       const destPath = `${tempPackagePath}/${file}`;
-      if (isLicensedArtifactPath(sourcePath)) return;
+      if (isLicensedArtifact(sourcePath)) return;
       if (fs.lstatSync(sourcePath).isDirectory()) {
-        fs.cpSync(sourcePath, destPath, { recursive: true, filter: (src) => !isLicensedArtifactPath(src) });
+        fs.cpSync(sourcePath, destPath, { recursive: true, filter: (src) => !isLicensedArtifact(src) });
       } else {
         fs.copyFileSync(sourcePath, destPath);
       }

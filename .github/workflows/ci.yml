@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # No version pin: action-setup reads the packageManager field in package.json.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Build
+        run: pnpm build
+
+      # dist/ is tracked, so a src/ change without a rebuild is a defect.
+      # version.json is excluded: its buildTime changes on every build.
+      - name: dist/ is up to date with src/
+        run: |
+          git diff --exit-code -- dist ':(exclude)dist/version.json' \
+            || { echo "dist/ is stale. Run 'pnpm build' and commit dist/."; exit 1; }
+
+      - name: Test
+        run: pnpm test

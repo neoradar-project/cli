@@ -45,8 +45,8 @@ importers:
         specifier: ^8.2.0
         version: 8.2.0
       sector-file-tools:
-        specifier: github:neoradar-project/sector-file-tools#v1.2.4
-        version: https://codeload.github.com/neoradar-project/sector-file-tools/tar.gz/ec1a87b6967435f26e7539c0148574de8fe93c1c
+        specifier: github:neoradar-project/sector-file-tools#v1.2.7
+        version: https://codeload.github.com/neoradar-project/sector-file-tools/tar.gz/98de9225029a901ef82b2a89725c177e601dea92
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
@@ -1894,9 +1894,9 @@ packages:
     resolution: {integrity: sha512-6R3J5M4AcbtLUdZmRv2SygeVaM7IhrLXu9BmnOGmmACak8fiUtOsYNWUS4uK7upbmHIBbLBeFeI//477BKLBzA==}
     engines: {node: '>=11.0.0'}
 
-  sector-file-tools@https://codeload.github.com/neoradar-project/sector-file-tools/tar.gz/ec1a87b6967435f26e7539c0148574de8fe93c1c:
-    resolution: {tarball: https://codeload.github.com/neoradar-project/sector-file-tools/tar.gz/ec1a87b6967435f26e7539c0148574de8fe93c1c}
-    version: 1.2.4
+  sector-file-tools@https://codeload.github.com/neoradar-project/sector-file-tools/tar.gz/98de9225029a901ef82b2a89725c177e601dea92:
+    resolution: {tarball: https://codeload.github.com/neoradar-project/sector-file-tools/tar.gz/98de9225029a901ef82b2a89725c177e601dea92}
+    version: 1.2.7
     engines: {node: '>=16.0.0'}
 
   semver@7.7.4:
@@ -2100,7 +2100,7 @@ packages:
 
   uuid@3.4.0:
     resolution: {integrity: sha512-HjSDRw6gZE5JMggctHBcjVak08+KEVhSIiDzFnT9S9aegmp85S/bReBVTb4QTFaRNptJ9kuYaNhnbNEOkbKb/A==}
-    deprecated: Please upgrade  to version 7 or higher.  Older versions may use Math.random() in certain circumstances, which is known to be problematic.  See https://v8.dev/blog/math-random for details.
+    deprecated: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
     hasBin: true
 
   v8-compile-cache-lib@3.0.1:
@@ -5176,7 +5176,7 @@ snapshots:
 
   sax@1.6.0: {}
 
-  sector-file-tools@https://codeload.github.com/neoradar-project/sector-file-tools/tar.gz/ec1a87b6967435f26e7539c0148574de8fe93c1c:
+  sector-file-tools@https://codeload.github.com/neoradar-project/sector-file-tools/tar.gz/98de9225029a901ef82b2a89725c177e601dea92:
     dependencies:
       '@turf/projection': 7.3.5
       '@types/chai': 4.3.20

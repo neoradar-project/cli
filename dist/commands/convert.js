@@ -17,6 +17,7 @@ const logger_1 = require("../helper/logger");
 const atc_data_parser_1 = require("./converter/atc-data-parser");
 const asr_1 = __importDefault(require("./converter/asr"));
 const atlas_generator_1 = require("./atlas-generator");
+const file_scanner_1 = require("../helper/publish/file-scanner");
 const convertSCT2AndESEFiles = async (sectorFilesPath, datasetsOutputPath) => {
     const sctSpinner = (0, ora_1.default)("Finding SCT2...").start();
     // Find SCT2 files
@@ -199,6 +200,14 @@ const convertAtlasFolder = async (packagePath) => {
 };
 const convert = async (packagePath, skipProfiles) => {
     console.log(`Starting conversion for package environment at path: ${packagePath}`);
+    try {
+        (0, file_scanner_1.assertNoLicensedArtifacts)(path_1.default.join(packagePath, "package"), "Conversion");
+    }
+    catch (error) {
+        console.error(error instanceof Error ? error.message : String(error));
+        process.exitCode = 1;
+        return;
+    }
     const confirmMessage = "\n⚠️  CAUTION: This operation will:\n" +
         "   • Override existing geojson datasets with the same names\n" +
         "   • Override fields that require update in the NSE\n" +

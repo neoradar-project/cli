@@ -128,10 +128,20 @@ test("artifact carries the pinned envelope fields from the manifest and CLI vers
 });
 
 test("sha256 fields verify against the embedded atcData and nse sections", async () => {
-  const { artifact, atcDataOnDisk } = await runPipelineOnce();
+  const { artifact } = await runPipelineOnce();
   assert.equal(sha256Hex(JSON.stringify(artifact.atcData)), artifact.atcDataSha256);
   assert.equal(sha256Hex(JSON.stringify(artifact.nse)), artifact.nseSha256);
-  assert.equal(JSON.stringify(artifact.atcData), atcDataOnDisk, "embedded atcData must be the same object the build wrote to datasets/atc-data.json");
+});
+
+test("copx is embedded in the artifact but stripped from the packaged atc-data.json", async () => {
+  const { artifact, atcDataOnDisk } = await runPipelineOnce();
+  assert.ok(Array.isArray(artifact.atcData.copx), "copx section present in artifact");
+
+  const packagedAtcData = JSON.parse(atcDataOnDisk);
+  assert.ok(!("copx" in packagedAtcData), "copx must not ship in the package");
+
+  const { copx: _serverOnly, ...artifactWithoutCopx } = artifact.atcData;
+  assert.deepEqual(packagedAtcData, artifactWithoutCopx, "packaged atc-data must be the embedded object minus copx");
 });
 
 test("vor/ndb/fix/airport are artifact-alive but absent from the packaged nse.json", async () => {
@@ -148,5 +158,10 @@ test("vor/ndb/fix/airport are artifact-alive but absent from the packaged nse.js
   assert.ok(artifact.nse.position.length >= 1, "position section populated");
   assert.ok(artifact.nse.procedure.length >= 1, "procedure section populated");
   assert.deepEqual(artifact.nse.position, packagedNse.position, "position matches what the package ships");
-  assert.deepEqual(artifact.nse.procedure, packagedNse.procedure, "procedure matches what the package ships");
+});
+
+test("procedure is artifact-alive but absent from the packaged nse.json", async () => {
+  const { artifact, packagedNse } = await runPipelineOnce();
+  assert.ok(artifact.nse.procedure.length >= 1, "procedure section populated in the artifact");
+  assert.ok(!("procedure" in packagedNse), "procedure reaches the client over the config channel, not the package");
 });

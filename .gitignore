@@ -136,3 +136,14 @@ out
 
 *.js.map
 dist-test/
+# This repo is pnpm-managed (see packageManager in package.json); an npm
+# lockfile here is a local accident, never the source of truth.
+package-lock.json
+
+# Per-machine constellation repo paths (see neoradar.repos.json)
+neoradar.repos.local.json
+
+# Claude Code: machine-local settings stay out of git; skills are shared.
+.claude/*
+!.claude/skills/
+neoradar.repos.local.json
