@@ -50,6 +50,32 @@ nse.json and updates the manifest), and finally emits `server-dataset.json`. It 
 override-heavy and asks for confirmation first; the confirmation text is the contract for
 what it will and will not touch.
 
+## ESE parsing: the `Only ...` blocks, and DEPAPT/ARRAPT
+
+`EseHelper` drops `SECTOR:Only ...` and `SECTORLINE:Only ...` blocks for non-GNG files
+(`config.json`'s `sectorFileFromGNG`). Dropping the header is not enough: the block's own
+`OWNER:` / `BORDER:` / `ARRAPT:` / `DEPAPT:` / `ACTIVE:` / `COORD:` lines still follow it in the
+stream, and the handlers write straight onto `context.currentSector` / `currentSectorLine`. Both
+skips used to `return` without moving those, so a skipped block's fields landed on the PREVIOUS
+one. `handleOwner` assigns, so the owner chain was replaced outright; `handleCoord` pushes, so a
+skipped sectorline's points would have extended the previous ring. Both now park the strays on a
+scratch object that never reaches the result (`ese-only-sector-bleed.test.ts`).
+
+That bug refiled 35 volumes of the UK file under the wrong sector, because
+`atc-data-parser.ts` groups volumes by `owners[0]`. `LFAPP CTA-7 (DB-45)` sits immediately before
+five `Only LL*` blocks and took `Only LLAPP`'s `OWNER:LLN:...`, so a Farnborough CTA volume was
+published as Heathrow North Approach's and handed Farnborough's airspace to whoever held LLN.
+
+**`DEPAPT`/`ARRAPT` are per-flight filters, not airport activation.** A volume carrying
+`ARRAPT:EGLL` applies only to flights arriving at Heathrow; one carrying neither applies to every
+flight, which is how overflights stay visible. 303 of the UK file's 885 SECTOR blocks carry one.
+`addVolumesToSector` currently unions them up to the SECTOR (`departureAirports` /
+`arrivalAirports`) as well as into `activeAirports`, and that aggregation is lossy: 63 sectors mix
+filtered and unfiltered volumes, so a sector-level filter would wrongly restrict the unfiltered
+ones. LLN is the worked example - `[EGLF, EGLL, EGWU]` is the union of `LLNTH_W/E` (EGLL, EGWU)
+and `LFAPP CTA-7` (EGLF). Emitting them per VOLUME is the prerequisite for `@server` and `@client`
+honouring the filter at all; today both drop the fields entirely.
+
 ## server-dataset.json (spec ruling P6)
 
 `src/helper/server-dataset.ts` emits the raw-importer-inputs artifact the panel stages:

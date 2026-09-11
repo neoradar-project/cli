@@ -44,6 +44,9 @@ const fs_1 = __importDefault(require("fs"));
 const atc_position_parser_1 = require("../commands/converter/nse/atc-position-parser");
 const procedure_parser_1 = require("../commands/converter/nse/procedure-parser");
 const logger_1 = require("./logger");
+// CIRCLE_SECTORLINE renders as a regular polygon. 10 sides under-covered a 2.5nm tower zone by
+// about 3 percent of its area; 64 is visually round at every radius the sector files use.
+const CIRCLE_STEPS = 64;
 class EseHelper {
     static isGNG = false;
     static createEmptySector() {
@@ -188,8 +191,12 @@ class EseHelper {
     }
     static handleSectorLine(line, result, context, allNavaids) {
         const id = line.split(":")[1];
-        if (id.startsWith("Only") && !this.isGNG)
+        // Same trap as handleNewSector, and worse here: handleCoord PUSHES, so a skipped block's
+        // COORD lines would extend the previous sectorline's ring rather than replace anything.
+        if (id.startsWith("Only") && !this.isGNG) {
+            context.currentSectorLine = this.createEmptySectorLine();
             return;
+        }
         const numericId = this.getNumericId(id, context);
         context.currentSectorLine = {
             id: numericId,
@@ -224,12 +231,12 @@ class EseHelper {
                 return;
             }
             const circle = turf.circle(turf.point([geo.lon, geo.lat]), radius, {
-                steps: 10,
+                steps: CIRCLE_STEPS,
                 units: "nauticalmiles",
             });
-            const circlePoints = circle.geometry.coordinates[0]
-                .map((coord) => (0, projection_1.toMercator)([coord[1], coord[0]]))
-                .filter((cartesian) => cartesian[0] && cartesian[1]);
+            // turf emits GeoJSON [lon, lat] and toMercator takes [lon, lat]; passing it reversed is what
+            // every other call site in this repo already gets right (geo-helper, asr, init-package).
+            const circlePoints = circle.geometry.coordinates[0].map((coord) => (0, projection_1.toMercator)(coord));
             context.currentSectorLine.points = circlePoints;
         }
         catch (error) {
@@ -247,15 +254,20 @@ class EseHelper {
         }
         const navaidName = parts[2].trim();
         const navaid = navaids.find((n) => n.name === navaidName);
-        if (!navaid?.lat || !navaid?.lon) {
+        if (navaid?.lat === undefined || navaid?.lon === undefined) {
             (0, logger_1.logESEParsingError)(`Navaid "${navaidName}" not found or missing coordinates`);
             return null;
         }
-        const toCartesian = (0, projection_1.toWgs84)([Number(navaid.lon), Number(navaid.lat)]);
-        return { lat: toCartesian[1], lon: toCartesian[0] };
+        // NseNavaid carries lat/lon in DEGREES alongside x/y in projected meters. Unprojecting the
+        // degrees collapsed every circle centre onto (0, 0); see getCircleCenter's test.
+        return { lat: Number(navaid.lat), lon: Number(navaid.lon) };
     }
+    // A zero latitude or longitude is a real coordinate, so this checks range rather than truthiness.
     static isValidGeoCoord(geo) {
-        return Boolean(geo?.lat && geo?.lon && !isNaN(geo.lat) && !isNaN(geo.lon));
+        if (geo === null || !Number.isFinite(geo.lat) || !Number.isFinite(geo.lon)) {
+            return false;
+        }
+        return Math.abs(geo.lat) <= 90 && Math.abs(geo.lon) <= 180;
     }
     static handleCoord(line, context) {
         const [, lat, lon] = line.split(":");
@@ -327,8 +339,18 @@ class EseHelper {
     }
     static handleNewSector(line, result, context) {
         const [, name, floor, ceiling] = line.split(":");
-        if (name.startsWith("Only") && !this.isGNG)
+        // Dropping the block is not enough: its OWNER/BORDER/ARRAPT/DEPAPT/ACTIVE lines still follow,
+        // and handleOwner and friends assign straight onto currentSector. Leaving that pointed at the
+        // PREVIOUS sector let a skipped block overwrite it, which refiled 35 volumes of the UK file
+        // under the wrong sector; LFAPP CTA-7 took "Only LLAPP"'s owner chain and became LLN's instead
+        // of LFR's. Park the strays on a scratch sector that never reaches the result.
+        if (name.startsWith("Only") && !this.isGNG) {
+            if (context.processingNewSector) {
+                this.finalizeSector(context);
+            }
+            context.currentSector = { ...this.createEmptySector(), name };
             return;
+        }
         if (context.processingNewSector) {
             this.finalizeSector(context);
         }
