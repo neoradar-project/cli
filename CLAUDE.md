@@ -50,7 +50,7 @@ nse.json and updates the manifest), and finally emits `server-dataset.json`. It 
 override-heavy and asks for confirmation first; the confirmation text is the contract for
 what it will and will not touch.
 
-## ESE parsing: the `Only ...` blocks, and DEPAPT/ARRAPT
+## ESE parsing: the `Only ...` blocks, DISPLAY, and the per-flight filters
 
 `EseHelper` drops `SECTOR:Only ...` and `SECTORLINE:Only ...` blocks for non-GNG files
 (`config.json`'s `sectorFileFromGNG`). Dropping the header is not enough: the block's own
@@ -66,15 +66,46 @@ That bug refiled 35 volumes of the UK file under the wrong sector, because
 five `Only LL*` blocks and took `Only LLAPP`'s `OWNER:LLN:...`, so a Farnborough CTA volume was
 published as Heathrow North Approach's and handed Farnborough's airspace to whoever held LLN.
 
-**`DEPAPT`/`ARRAPT` are per-flight filters, not airport activation.** A volume carrying
-`ARRAPT:EGLL` applies only to flights arriving at Heathrow; one carrying neither applies to every
-flight, which is how overflights stay visible. 303 of the UK file's 885 SECTOR blocks carry one.
-`addVolumesToSector` currently unions them up to the SECTOR (`departureAirports` /
-`arrivalAirports`) as well as into `activeAirports`, and that aggregation is lossy: 63 sectors mix
-filtered and unfiltered volumes, so a sector-level filter would wrongly restrict the unfiltered
-ones. LLN is the worked example - `[EGLF, EGLL, EGWU]` is the union of `LLNTH_W/E` (EGLL, EGWU)
-and `LFAPP CTA-7` (EGLF). Emitting them per VOLUME is the prerequisite for `@server` and `@client`
-honouring the filter at all; today both drop the fields entirely.
+**`DISPLAY` is edge-scoped, not sector-scoped.** A `DISPLAY:<A>:<B>:<C>` line sits inside a
+`SECTORLINE` / `CIRCLE_SECTORLINE` block and belongs to that one edge: the manual highlights the
+edge when the local controller covers sector `A` and sectors `B` and `C` have different owners.
+`handleDisplay` pushes `{ownedVolume: A, compareVolumes: [B, C]}` onto
+`context.currentSectorLine.displaySectorLines`, and `createBorderLines` emits it as
+`borderLines[id].displaySectorLines` - the same field `DISPLAY_SECTORLINE` writes. A `DISPLAY` with
+no enclosing sectorline, whether outside any block or under a skipped `Only ...` one, is logged and
+dropped rather than attached elsewhere. **Volumes carry no display rules**; there is no
+`Volume.displaySectorLines` and no `Sector.displaySectorLines`. Before this the rule was attached to
+a SECTOR of the same NAME as the sectorline, which kept 373 of the UK file's 2869 rules, all at volume
+level, and the client then drew every edge of that volume; the rebuilt UK package carries 2553 rules
+on 833 of its 999 border lines. Rollout: every sector file must be re-converted before its border
+lines carry the rules, and the client needs no change because it already reads them off the border
+lines (`ese-display-edge-scope.test.ts`).
+
+**`DEPAPT`/`ARRAPT`/`GUEST` are per-flight filters and are emitted PER VOLUME.** Each volume
+carries `departureAirports`, `arrivalAirports` (the block's own lists, `[]` when absent) and
+`guests` (`{position, departureAirport, arrivalAirport}`, a `*` parsed as `null`). The semantics
+both consumers implement: a volume applies to a flight when both lists are empty, or its origin is
+in `departureAirports`, or its destination is in `arrivalAirports`; a `GUEST` entry marks an
+aircraft tracked by that position with matching airports as that position's traffic inside the
+volume. 305 of the UK file's SECTOR blocks carry an airport filter and 518 lines carry a `GUEST`.
+The sector-level union alone was lossy - 35 sectors mix filtered and unfiltered volumes, and a
+consumer reading it could not tell which. LLN is the worked example: both its volumes carry
+`ARRAPT:EGLL:EGWU`, so a 6000 ft EGJJ to EGLC crossing the estuary is out of scope for Heathrow
+North however deep into `LLNTH_W` it flies. The sector-level
+`activeAirports` / `departureAirports` / `arrivalAirports` unions stay as they are: they drive
+airport ACTIVATION, not filtering. The EuroScope manual documents `DEPAPT`/`ARRAPT` only as airport
+activation; the UK file and EuroScope's own behaviour are the authority here, not the manual's
+wording. Rollout: re-convert every sector file; volumes in an older package carry none of the three
+fields (`ese-flight-filters.test.ts`). Known blocker: the LFXX rebuild is skipped because its
+`airways.db` sits inside `package/` and `convert` refuses the run (see Licensed databases below);
+move the file out before re-converting.
+
+**Placeholder sectors survive into the dataset.** A `SECTOR:<name>:0:0` block with no border (UK:
+`London TC SW`, `London TC LAM`, 178 of 747 volumes) is a name the COPX `FROM`/`TO` columns refer
+to, not airspace. It is emitted as a volume with `floor == ceiling`, which both consumers treat as
+a placeholder that never wins containment, and `@server` import-vacc turns it into an alias of the
+owning sector so those COPX rows resolve (UK COP resolution went from 17% to 100% on that alone).
+Dropping zero-band volumes here would silently break coordination levels.
 
 ## server-dataset.json (spec ruling P6)
 
@@ -183,8 +214,10 @@ a vAcc is pinned to are hub-managed (`/admin/airac`, `/admin/navdata`,
 ### Where the schemas repo fits
 
 The JSON Schemas at `@schemas` (`package/manifest.schema.json`,
-`profile.schema.json`, `systems/{expressions,labels,lists,mapstyle,targets}.schema.json`)
-describe the package and system files this CLI writes and the desktop client reads.
+`profile.schema.json`, `systems/{expressions,labels,lists,mapstyle,shapes,targets}.schema.json`)
+describe the package and system files this CLI writes and the desktop client reads. Nothing
+covers `datasets/atc-data.json` or `server-dataset.json`; the TypeScript types in
+`src/definitions/package-atc-data.ts` are their only description.
 **The CLI does not currently consume them.** `init-package` and the converters write
 those files from hand-rolled TypeScript types in `src/definitions/`, and nothing
 validates the result. `ajv` is a declared dependency but has no import anywhere in

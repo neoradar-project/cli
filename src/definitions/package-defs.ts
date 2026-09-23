@@ -8,6 +8,12 @@ interface SectorLineDisplay {
   compareVolumes: string[];
 }
 
+export interface SectorGuest {
+  position: string;
+  departureAirport: string | null;
+  arrivalAirport: string | null;
+}
+
 export interface Sector {
   name: string;
   actives: Array<any>;
@@ -15,9 +21,9 @@ export interface Sector {
   borders: number[];
   depApts: string[];
   arrApts: string[];
+  guests: SectorGuest[];
   floor: number;
   ceiling: number;
-  displaySectorLines: SectorLineDisplay[];
 }
 
 export type CartesianPoint = number[];

@@ -555,7 +555,9 @@ class AtcDataManager {
         floor: relatedSector.floor,
         ceiling: relatedSector.ceiling,
         activationCondition: relatedSector.actives,
-        displaySectorLines: relatedSector.displaySectorLines || [],
+        departureAirports: relatedSector.depApts?.filter(Boolean) || [],
+        arrivalAirports: relatedSector.arrApts?.filter(Boolean) || [],
+        guests: relatedSector.guests || [],
       };
 
       // Collect active airports

@@ -23,15 +23,11 @@ export interface ParsedEseContent {
 interface SectorHandlerContext {
   currentSector: Sector;
   currentSectorLine: SectorLine;
+  // False while currentSectorLine is the scratch object a skipped "Only" block writes onto.
+  currentSectorLinePublished: boolean;
   baseMatrixInt: number;
   numericIDReplacementMatrix: Record<string, number>;
   processingNewSector: boolean;
-  pendingDisplayData: Array<{
-    sectorLineId: string;
-    sectorId: string;
-    adjSector1: string;
-    adjSector2: string;
-  }>;
   pendingSectorLineDisplayData: Array<{
     borderId: number;
     ownedVolume: string;
@@ -50,9 +46,9 @@ export class EseHelper {
       borders: [],
       depApts: [],
       arrApts: [],
+      guests: [],
       floor: 0,
       ceiling: 0,
-      displaySectorLines: [],
     };
   }
 
@@ -79,10 +75,10 @@ export class EseHelper {
     const context: SectorHandlerContext = {
       currentSector: this.createEmptySector(),
       currentSectorLine: this.createEmptySectorLine(),
+      currentSectorLinePublished: false,
       baseMatrixInt: 690,
       numericIDReplacementMatrix: {},
       processingNewSector: false,
-      pendingDisplayData: [],
       pendingSectorLineDisplayData: [],
     };
     let currentSection = "";
@@ -106,7 +102,7 @@ export class EseHelper {
       this.finalizeSector(context);
     }
 
-    this.processPendingDisplayData(context, result);
+    this.processPendingSectorLineDisplayData(context, result);
 
     return result;
   }
@@ -183,7 +179,7 @@ export class EseHelper {
     const handlers: Record<string, () => void> = {
       SECTORLINE: () => this.handleSectorLine(line, result, context, allNavaids),
       CIRCLE_SECTORLINE: () => this.handleSectorLine(line, result, context, allNavaids),
-      DISPLAY: () => this.handleDisplay(line, context, result), // Added result parameter
+      DISPLAY: () => this.handleDisplay(line, context),
       COORD: () => this.handleCoord(line, context),
       SECTOR: () => this.handleNewSector(line, result, context),
       OWNER: () => this.handleOwner(line, context),
@@ -191,6 +187,7 @@ export class EseHelper {
       DEPAPT: () => this.handleDepApt(line, context),
       ARRAPT: () => this.handleArrApt(line, context),
       ACTIVE: () => this.handleActive(line, context),
+      GUEST: () => this.handleGuest(line, context),
       DISPLAY_SECTORLINE: () => this.handleDisplaySectorLine(line, context, result),
       COPX: () => this.handleCopx(line, result),
       FIR_COPX: () => this.handleCopx(line, result),
@@ -210,6 +207,7 @@ export class EseHelper {
     // COORD lines would extend the previous sectorline's ring rather than replace anything.
     if (id.startsWith("Only") && !this.isGNG) {
       context.currentSectorLine = this.createEmptySectorLine();
+      context.currentSectorLinePublished = false;
       return;
     }
 
@@ -219,6 +217,7 @@ export class EseHelper {
       points: [],
       displaySectorLines: [],
     };
+    context.currentSectorLinePublished = true;
 
     result.sectorLines.push(context.currentSectorLine);
 
@@ -309,59 +308,27 @@ export class EseHelper {
     }
   }
 
-  private static getOriginalId(numericId: number, context: SectorHandlerContext): string | null {
-    // Find the key where the value matches the numeric ID
-    for (const [key, value] of Object.entries(context.numericIDReplacementMatrix)) {
-      if (value === numericId) {
-        return key;
-      }
-    }
+  // DISPLAY:<owned>:<compareA>:<compareB> is scoped to the SECTORLINE block it sits in.
+  private static handleDisplay(line: string, context: SectorHandlerContext): void {
+    const [ownedVolume, compareA, compareB] = this.splitAndClean(line, "DISPLAY");
 
-    return null;
-  }
-
-  private static handleDisplay(line: string, context: SectorHandlerContext, result: ParsedEseContent): void {
-    const [, sectorId, adjSector1, adjSector2] = line.split(":");
-
-    // Get the original string ID for the current sector line
-    const originalSectorLineId = this.getOriginalId(context.currentSectorLine.id, context);
-
-    if (!originalSectorLineId) {
-      // logESEParsingWarning(`Could not find original ID for sector line: ${context.currentSectorLine.id}`);
+    if (!context.currentSectorLinePublished) {
+      logESEParsingWarning(`DISPLAY line outside a published sectorline block, dropped: "${line}"`);
       return;
     }
 
-    // Try to find the sector with the matching name (using sectorId from the line)
-    const targetSector = result.sectors.find((sector) => sector.name === originalSectorLineId);
-
-    if (targetSector) {
-      targetSector.displaySectorLines.push({
-        ownedVolume: sectorId,
-        compareVolumes: [adjSector1, adjSector2],
-      });
-    } else {
-      // Defer processing if sector doesn't exist yet
-      context.pendingDisplayData.push({
-        sectorLineId: originalSectorLineId, // For reference/debugging
-        sectorId: sectorId, // The sector that should own this display rule
-        adjSector1,
-        adjSector2,
-      });
+    if (!ownedVolume || !compareA || !compareB) {
+      logESEParsingError(`Invalid DISPLAY line, expected owned and two compared volumes: "${line}"`);
+      return;
     }
+
+    context.currentSectorLine.displaySectorLines.push({
+      ownedVolume,
+      compareVolumes: [compareA, compareB],
+    });
   }
 
-  private static processPendingDisplayData(context: SectorHandlerContext, result: ParsedEseContent): void {
-    for (const pendingDisplay of context.pendingDisplayData) {
-      const targetSector = result.sectors.find((sector) => sector.name === pendingDisplay.sectorLineId);
-
-      if (targetSector) {
-        targetSector.displaySectorLines.push({
-          ownedVolume: pendingDisplay.sectorId,
-          compareVolumes: [pendingDisplay.adjSector1, pendingDisplay.adjSector2],
-        });
-      }
-    }
-
+  private static processPendingSectorLineDisplayData(context: SectorHandlerContext, result: ParsedEseContent): void {
     for (const pending of context.pendingSectorLineDisplayData) {
       const sectorLine = result.sectorLines.find((sl) => sl.id === pending.borderId);
       if (sectorLine) {
@@ -374,7 +341,6 @@ export class EseHelper {
 
     // Clear the pending data after processing
     context.pendingSectorLineDisplayData = [];
-    context.pendingDisplayData = [];
   }
 
   private static handleNewSector(line: string, result: ParsedEseContent, context: SectorHandlerContext): void {
@@ -484,6 +450,21 @@ export class EseHelper {
       return;
     }
     context.currentSector.actives.push({ type: "runway", icao, runway });
+  }
+
+  // GUEST:<position>:<depApt|*>:<arrApt|*>; a wildcard becomes null.
+  private static handleGuest(line: string, context: SectorHandlerContext): void {
+    const [position, departure, arrival] = this.splitAndClean(line, "GUEST");
+    if (!position || !departure || !arrival) {
+      logESEParsingWarning(`Invalid GUEST line format: "${line}" - expected position, departure and arrival`);
+      return;
+    }
+
+    context.currentSector.guests.push({
+      position,
+      departureAirport: departure === "*" ? null : departure,
+      arrivalAirport: arrival === "*" ? null : arrival,
+    });
   }
 
   private static handleCopx(line: string, result: ParsedEseContent): void {

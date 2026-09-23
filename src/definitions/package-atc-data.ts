@@ -36,13 +36,22 @@ export interface BorderLine {
   displaySectorLines: SectorLineDisplay[];
 }
 
+export interface VolumeGuest {
+  position: string;
+  departureAirport: string | null;
+  arrivalAirport: string | null;
+}
+
 export interface Volume {
   id: string;
   definition: number[];
   floor: number;
   ceiling: number;
   activationCondition: any[];
-  displaySectorLines: SectorLineDisplay[];
+  // ESE per-flight filters: the volume applies to every flight when both airport lists are empty.
+  departureAirports: string[];
+  arrivalAirports: string[];
+  guests: VolumeGuest[];
 }
 
 export interface SectorLineDisplay {
