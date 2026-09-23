@@ -13,6 +13,7 @@ import { isHalloweenWeek } from "./helper/fun";
 import { createPluginArchives } from "./commands/create-plugin-archives";
 import { generateAtlas } from "./commands/atlas-generator";
 import { buildAirwaysCommand } from "./commands/build-airways";
+import { migrateLabels } from "./commands/migrate-labels";
 
 console.log(
   figlet.textSync("NeoRadar CLI", {
@@ -82,6 +83,18 @@ program
   .option("--keep-deploy", "Keep the deploy directory after publishing (useful for debugging)", false)
   .action((packagePath, options) => {
     distributeCommand(packagePath || process.cwd(), options.name, options.newVersion, options.indexing ? false : true, options.publish, options.keepDeploy);
+  });
+
+program
+  .command("migrate-labels")
+  .description(
+    "Converts every systems/*/labels.json to the labels array shape, replacing the fixed row sets (airborne unconcerned/concerned/detailed, ground default/arrival/departure/detailed/arrivalDetailed/departureDetailed). " +
+      "Style variants, a ground \"#systemId\" reference and the root keys are preserved; a file already in the new shape is left untouched. JSON only, the CLI has no YAML dependency."
+  )
+  .argument("<string>", "Path to the package environment or built package, defaults to current directory")
+  .option("--no-confirmation", "Skip confirmation prompt")
+  .action((packagePath: string, options: { confirmation?: boolean }) => {
+    migrateLabels(packagePath || process.cwd(), options.confirmation === false);
   });
 
 program

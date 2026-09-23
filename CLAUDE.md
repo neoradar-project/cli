@@ -36,8 +36,8 @@ sources (SCT2/ESE, ASR profiles, TopSky maps, symbol PNGs) into the client's pac
 format, indexes GeoJSON features, zips packages for distribution, and builds the
 server-only artifacts. Node/TypeScript (commonjs), commander-based; commands live in
 `src/commands/`, shared helpers in `src/helper/`. Commands: `init`, `convert`,
-`topsky-convert`, `index`, `distribute`, `create-plugin-archives`, `generate-symbols`,
-`build-airways`.
+`topsky-convert`, `index`, `distribute`, `migrate-labels`, `create-plugin-archives`,
+`generate-symbols`, `build-airways`.
 
 ## The convert pipeline
 

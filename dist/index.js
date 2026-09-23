@@ -17,6 +17,7 @@ const fun_1 = require("./helper/fun");
 const create_plugin_archives_1 = require("./commands/create-plugin-archives");
 const atlas_generator_1 = require("./commands/atlas-generator");
 const build_airways_1 = require("./commands/build-airways");
+const migrate_labels_1 = require("./commands/migrate-labels");
 console.log(figlet_1.default.textSync("NeoRadar CLI", {
     font: (0, fun_1.isHalloweenWeek)() ? "Ghost" : "Standard",
 }));
@@ -75,6 +76,15 @@ program
     .option("--keep-deploy", "Keep the deploy directory after publishing (useful for debugging)", false)
     .action((packagePath, options) => {
     (0, distribute_1.distributeCommand)(packagePath || process.cwd(), options.name, options.newVersion, options.indexing ? false : true, options.publish, options.keepDeploy);
+});
+program
+    .command("migrate-labels")
+    .description("Converts every systems/*/labels.json to the labels array shape, replacing the fixed row sets (airborne unconcerned/concerned/detailed, ground default/arrival/departure/detailed/arrivalDetailed/departureDetailed). " +
+    "Style variants, a ground \"#systemId\" reference and the root keys are preserved; a file already in the new shape is left untouched. JSON only, the CLI has no YAML dependency.")
+    .argument("<string>", "Path to the package environment or built package, defaults to current directory")
+    .option("--no-confirmation", "Skip confirmation prompt")
+    .action((packagePath, options) => {
+    (0, migrate_labels_1.migrateLabels)(packagePath || process.cwd(), options.confirmation === false);
 });
 program
     .command("create-plugin-archives <buildDir>")
