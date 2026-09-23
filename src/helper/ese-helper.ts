@@ -7,6 +7,7 @@ import fs from "fs";
 import { parseAtcPositionLine } from "../commands/converter/nse/atc-position-parser";
 import { parseESEProcedure } from "../commands/converter/nse/procedure-parser";
 import { logESEParsingError, logESEParsingWarning } from "./logger";
+import { RadarSection, RadarSectionParser } from "./radars";
 
 // CIRCLE_SECTORLINE renders as a regular polygon. 10 sides under-covered a 2.5nm tower zone by
 // about 3 percent of its area; 64 is visually round at every radius the sector files use.
@@ -18,6 +19,7 @@ export interface ParsedEseContent {
   sectors: Sector[];
   sectorLines: SectorLine[];
   copx: Copx[];
+  radars: RadarSection;
 }
 
 interface SectorHandlerContext {
@@ -33,6 +35,7 @@ interface SectorHandlerContext {
     ownedVolume: string;
     compareVolumes: string[];
   }>;
+  radar: RadarSectionParser;
 }
 
 export class EseHelper {
@@ -70,6 +73,7 @@ export class EseHelper {
       sectors: [],
       sectorLines: [],
       copx: [],
+      radars: { stations: [], holes: [] },
     };
 
     const context: SectorHandlerContext = {
@@ -80,6 +84,7 @@ export class EseHelper {
       numericIDReplacementMatrix: {},
       processingNewSector: false,
       pendingSectorLineDisplayData: [],
+      radar: new RadarSectionParser(),
     };
     let currentSection = "";
 
@@ -103,6 +108,7 @@ export class EseHelper {
     }
 
     this.processPendingSectorLineDisplayData(context, result);
+    result.radars = context.radar.finish();
 
     return result;
   }
@@ -116,6 +122,9 @@ export class EseHelper {
         break;
       case "AIRSPACE":
         this.handleAirspace(line, result, context, allNavaids);
+        break;
+      case "RADAR":
+        context.radar.handleLine(line);
         break;
       default:
         this.handleDefault(line, result);

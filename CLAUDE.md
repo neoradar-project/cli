@@ -107,6 +107,21 @@ a placeholder that never wins containment, and `@server` import-vacc turns it in
 owning sector so those COPX rows resolve (UK COP resolution went from 17% to 100% on that alone).
 Dropping zero-band volumes here would silently break coordination levels.
 
+## The [RADAR] section becomes datasets/radars.json
+
+`src/helper/radars.ts` (`RadarSectionParser`, driven from `EseHelper.handleLine`'s `RADAR` case)
+reads EuroScope's `RADAR2:<name>:<lat>:<lon>:` plus three `range:antenna:cone` triples (primary,
+secondary, Mode S; an empty range means that sensor is absent) and the `HOLE:<P floor>:<S floor>:<C
+floor>` blocks whose `COORD` lines follow them: inside the polygon a sensor kind with a floor has no
+coverage below it. `src/commands/converter/ese.ts` writes `package/datasets/radars.json` (schema
+`@schemas/datasets/radars.schema.json`, vertices `[latitude, longitude]` degrees) only when the
+section has at least one station. **The file's presence turns the client's coverage simulation on
+for every controller loading the package**: out of every sensor's reach a target draws nothing.
+Rollout: any sector file with a `[RADAR]` section gets it on its next `convert`; the UK file yields
+49 stations and 29 holes, the first being no primary return below 500 ft over the whole country. A
+file left behind by an ESE that has since lost the section is reported, not deleted
+(`ese-radars.test.ts`).
+
 ## server-dataset.json (spec ruling P6)
 
 `src/helper/server-dataset.ts` emits the raw-importer-inputs artifact the panel stages:

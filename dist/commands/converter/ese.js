@@ -10,6 +10,7 @@ const ese_helper_1 = require("../../helper/ese-helper");
 const utils_1 = require("../../utils");
 const nse_1 = require("../../helper/nse");
 const logger_1 = require("../../helper/logger");
+const radars_1 = require("../../helper/radars");
 class ESEParser {
     static NAVAID_TYPES = ["vor", "ndb", "fix", "airport"];
     isGNG = false;
@@ -100,6 +101,9 @@ class ESEParser {
         try {
             const eseProcessedData = await ese_helper_1.EseHelper.parseEseContent(eseFilePath, allNavaids, this.isGNG);
             (0, nse_1.updateNSE)(this.datasetOutputPath, "position", eseProcessedData.position);
+            // Present only when the ESE has a [RADAR] section: the file turns the client's coverage
+            // simulation on for this package.
+            (0, radars_1.writeRadarsDataset)(this.datasetOutputPath, eseProcessedData.radars);
             // procedure is deliberately NOT written into the packaged nse: the client receives
             // the catalog on the config channel (configSnapshot/configDelta), so a SID/STAR
             // change reaches a connected picker on the vAcc's next publish instead of waiting

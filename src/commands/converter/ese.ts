@@ -6,6 +6,7 @@ import { EseHelper, ParsedEseContent } from "../../helper/ese-helper";
 import { getFeatureName } from "../../utils";
 import { updateNSE } from "../../helper/nse";
 import { logESEParsingError, logESEParsingWarning } from "../../helper/logger";
+import { writeRadarsDataset } from "../../helper/radars";
 
 export type NavaidType = "vor" | "ndb" | "fix" | "airport";
 
@@ -133,6 +134,9 @@ class ESEParser {
             );
 
             updateNSE(this.datasetOutputPath, "position", eseProcessedData.position);
+            // Present only when the ESE has a [RADAR] section: the file turns the client's coverage
+            // simulation on for this package.
+            writeRadarsDataset(this.datasetOutputPath, eseProcessedData.radars);
             // procedure is deliberately NOT written into the packaged nse: the client receives
             // the catalog on the config channel (configSnapshot/configDelta), so a SID/STAR
             // change reaches a connected picker on the vAcc's next publish instead of waiting

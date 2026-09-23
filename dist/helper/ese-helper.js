@@ -44,6 +44,7 @@ const fs_1 = __importDefault(require("fs"));
 const atc_position_parser_1 = require("../commands/converter/nse/atc-position-parser");
 const procedure_parser_1 = require("../commands/converter/nse/procedure-parser");
 const logger_1 = require("./logger");
+const radars_1 = require("./radars");
 // CIRCLE_SECTORLINE renders as a regular polygon. 10 sides under-covered a 2.5nm tower zone by
 // about 3 percent of its area; 64 is visually round at every radius the sector files use.
 const CIRCLE_STEPS = 64;
@@ -78,6 +79,7 @@ class EseHelper {
             sectors: [],
             sectorLines: [],
             copx: [],
+            radars: { stations: [], holes: [] },
         };
         const context = {
             currentSector: this.createEmptySector(),
@@ -87,6 +89,7 @@ class EseHelper {
             numericIDReplacementMatrix: {},
             processingNewSector: false,
             pendingSectorLineDisplayData: [],
+            radar: new radars_1.RadarSectionParser(),
         };
         let currentSection = "";
         for (const rawLine of lines) {
@@ -106,6 +109,7 @@ class EseHelper {
             this.finalizeSector(context);
         }
         this.processPendingSectorLineDisplayData(context, result);
+        result.radars = context.radar.finish();
         return result;
     }
     static handleLine(line, section, result, context, allNavaids) {
@@ -117,6 +121,9 @@ class EseHelper {
                 break;
             case "AIRSPACE":
                 this.handleAirspace(line, result, context, allNavaids);
+                break;
+            case "RADAR":
+                context.radar.handleLine(line);
                 break;
             default:
                 this.handleDefault(line, result);
