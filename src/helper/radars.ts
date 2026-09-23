@@ -11,6 +11,24 @@ export interface RadarSensor {
   coneSlopeFtPerNm?: number;
 }
 
+// The TopSkyRadars.txt half of a station: what SIZES a synthesised primary return rather than
+// what decides it is seen. Written by the TopSky pipeline, absent for a package with no
+// topsky/ folder, and the client then draws the return life size as it does today.
+export interface RawVideoStation {
+  // A target is drawn 2 x beamwidth wide in azimuth, so the blob grows with range.
+  beamwidthDeg: number;
+  // 0.08 NM of range depth per microsecond.
+  pulseWidthUs: number;
+  // Elevation above which nothing is seen: the cone of silence over the head.
+  maxAngleDeg: number;
+  // Login callsign prefixes this station serves; the FIRST station whose prefix matches wins.
+  positions: string[];
+  antennaAltitudeFt?: number;
+  minRangeNm?: number;
+  maxRangeNm?: number;
+  ceilingFt?: number;
+}
+
 export interface RadarStation {
   name: string;
   latitude: number;
@@ -18,6 +36,7 @@ export interface RadarStation {
   primary?: RadarSensor;
   secondary?: RadarSensor;
   modeS?: RadarSensor;
+  rawVideo?: RawVideoStation;
 }
 
 // An ESE HOLE block: inside the polygon a sensor kind has no coverage below its floor. A kind

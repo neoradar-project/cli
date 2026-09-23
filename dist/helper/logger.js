@@ -3,11 +3,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.logATCDataParsingWarning = exports.logATCDataParsingError = exports.logSCTParsingWarning = exports.logSCTParsingError = exports.logESEParsingWarning = exports.logESEParsingError = exports.atcDataParsingErrorCount = exports.eseParsingErrorCount = exports.sctParsingErrorCount = void 0;
+exports.logTopSkyParsingWarning = exports.logATCDataParsingWarning = exports.logATCDataParsingError = exports.logSCTParsingWarning = exports.logSCTParsingError = exports.logESEParsingWarning = exports.logESEParsingError = exports.topSkyParsingErrorCount = exports.atcDataParsingErrorCount = exports.eseParsingErrorCount = exports.sctParsingErrorCount = void 0;
 const winston_1 = __importDefault(require("winston"));
 exports.sctParsingErrorCount = 0;
 exports.eseParsingErrorCount = 0;
 exports.atcDataParsingErrorCount = 0;
+exports.topSkyParsingErrorCount = 0;
 const transports = {
     console: new winston_1.default.transports.Console({ level: 'warn' }),
     file: new winston_1.default.transports.File({ filename: 'neoradar-cli.log' })
@@ -52,4 +53,11 @@ const logATCDataParsingWarning = (message, ...meta) => {
     logger.warn(`ATC Data Parsing warning #${exports.atcDataParsingErrorCount}: ${message}`, ...meta);
 };
 exports.logATCDataParsingWarning = logATCDataParsingWarning;
+// Every TopSky data file warning goes through here with its file, its line number and the line
+// itself, so a run summary can count them and nothing is dropped silently.
+const logTopSkyParsingWarning = (file, lineNumber, line, message) => {
+    exports.topSkyParsingErrorCount++;
+    logger.warn(`TopSky parsing warning #${exports.topSkyParsingErrorCount}: ${file}:${lineNumber}: ${message} | "${line}"`);
+};
+exports.logTopSkyParsingWarning = logTopSkyParsingWarning;
 //# sourceMappingURL=logger.js.map

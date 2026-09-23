@@ -12,6 +12,7 @@ import { atcData } from "./converter/atc-data-parser";
 import AsrFolderConverter from "./converter/asr";
 import { generateAtlas } from "./atlas-generator";
 import { assertNoLicensedArtifacts } from "../helper/publish/file-scanner";
+import { defaultTimezone, runTopSkyPipeline, TOPSKY_FOLDER, topSkyOutputNames } from "./converter/topsky";
 
 const convertSCT2AndESEFiles = async (sectorFilesPath: string, datasetsOutputPath: string) => {
   const sctSpinner = ora("Finding SCT2...").start();
@@ -213,8 +214,12 @@ const convertAtlasFolder = async (packagePath: string) => {
   }
 };
 
-export const convert = async (packagePath: string, skipProfiles: boolean) => {
+export const convert = async (packagePath: string, skipProfiles: boolean, timezone?: string) => {
   console.log(`Starting conversion for package environment at path: ${packagePath}`);
+
+  // The TopSky folder is optional, exactly as ASRs/ is; its presence changes what the run will
+  // overwrite, so the confirmation text has to know about it before it is printed.
+  const hasTopSky = fs.existsSync(path.join(packagePath, TOPSKY_FOLDER));
 
   try {
     assertNoLicensedArtifacts(path.join(packagePath, "package"), "Conversion");
@@ -230,6 +235,7 @@ export const convert = async (packagePath: string, skipProfiles: boolean) => {
     "   • Override fields that require update in the NSE\n" +
     "   • Override existing package symbol data\n" +
     "   • Override the atc-data file\n" +
+    (hasTopSky ? `   • Convert ${TOPSKY_FOLDER}/ and overwrite ${topSkyOutputNames().join(", ")}\n` : "") +
     (skipProfiles ? "" : "   • Override existing STP profiles\n") +
     "   • Override server-dataset.json next to the package folder\n" +
     "   • Add missing layers to the manifest\n" +
@@ -252,6 +258,10 @@ export const convert = async (packagePath: string, skipProfiles: boolean) => {
   const datasetsOutputPath = `${packagePath}/package/datasets`;
 
   const eseResult = await convertSCT2AndESEFiles(sectorFilesPath, datasetsOutputPath);
+
+  // After the ESE step, which writes radars.json for the raw video merge, and before the
+  // indexer, which picks the new datasets up as map layers.
+  await convertTopSkyFolder(packagePath, timezone);
   if (!skipProfiles) {
     await convertASRFolder(packagePath);
   }
@@ -279,6 +289,25 @@ export const convert = async (packagePath: string, skipProfiles: boolean) => {
   }
 
   console.log(`Conversion completed for package environment at path: ${packagePath}`);
+};
+
+const convertTopSkyFolder = async (packagePath: string, timezone?: string) => {
+  const spinner = ora("Finding TopSky data files...").start();
+  const result = await runTopSkyPipeline(packagePath, {
+    timezone: timezone || defaultTimezone(),
+    spinner,
+  });
+
+  if (result.refused) {
+    process.exitCode = 1;
+    return;
+  }
+  if (!result.ran) return;
+
+  if (result.warnings > 0) {
+    spinner.warn(`TopSky conversion completed with ${result.warnings} warnings. Check neoradar-cli.log for details.`);
+  }
+  spinner.succeed(`TopSky conversion wrote ${result.written.length} dataset file(s).`);
 };
 
 export const convertSingleSCT = async (sctFilePath: string, layerName: string) => {

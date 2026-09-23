@@ -3,6 +3,7 @@ import winston from 'winston';
 export let sctParsingErrorCount = 0;
 export let eseParsingErrorCount = 0;
 export let atcDataParsingErrorCount = 0;
+export let topSkyParsingErrorCount = 0;
 
 const transports = {
   console: new winston.transports.Console({ level: 'warn' }),
@@ -49,4 +50,18 @@ export const logATCDataParsingError = (message: string, ...meta: any[]) => {
 export const logATCDataParsingWarning = (message: string, ...meta: any[]) => {
   atcDataParsingErrorCount++;
   logger.warn(`ATC Data Parsing warning #${atcDataParsingErrorCount}: ${message}`, ...meta);
+};
+
+// Every TopSky data file warning goes through here with its file, its line number and the line
+// itself, so a run summary can count them and nothing is dropped silently.
+export const logTopSkyParsingWarning = (
+  file: string,
+  lineNumber: number,
+  line: string,
+  message: string
+) => {
+  topSkyParsingErrorCount++;
+  logger.warn(
+    `TopSky parsing warning #${topSkyParsingErrorCount}: ${file}:${lineNumber}: ${message} | "${line}"`
+  );
 };

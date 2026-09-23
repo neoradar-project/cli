@@ -32,7 +32,7 @@ Guidance for Claude Code when working in this repository.
 ## What this is
 
 `neoradar-cli` is the package authoring tool for NeoRadar: it converts EuroScope sector
-sources (SCT2/ESE, ASR profiles, TopSky maps, symbol PNGs) into the client's package
+sources (SCT2/ESE, ASR profiles, TopSky data files, symbol PNGs) into the client's package
 format, indexes GeoJSON features, zips packages for distribution, and builds the
 server-only artifacts. Node/TypeScript (commonjs), commander-based; commands live in
 `src/commands/`, shared helpers in `src/helper/`. Commands: `init`, `convert`,
@@ -45,7 +45,8 @@ server-only artifacts. Node/TypeScript (commonjs), commander-based; commands liv
 directory: it finds SCT2 + ESE under `sector_files/`, parses them into GeoJSON datasets
 plus the NSE `position`/`procedure` sections under `package/datasets/`, converts `ASRs/`
 to STP profiles (unless `--skip-profiles`), generates the symbol texture atlas from
-`symbols/`, parses `atc-data`, runs the indexer (which writes `mapItemsIndex` into
+`symbols/`, parses `atc-data`, runs the TopSky pipeline over `topsky/` when that folder exists,
+runs the indexer (which writes `mapItemsIndex` into
 nse.json and updates the manifest), and finally emits `server-dataset.json`. It is
 override-heavy and asks for confirmation first; the confirmation text is the contract for
 what it will and will not touch.
@@ -121,6 +122,57 @@ Rollout: any sector file with a `[RADAR]` section gets it on its next `convert`;
 49 stations and 29 holes, the first being no primary return below 500 ft over the whole country. A
 file left behind by an ESE that has since lost the section is reported, not deleted
 (`ese-radars.test.ts`).
+
+## The TopSky pipeline: topsky/ becomes datasets
+
+`src/commands/converter/topsky/` turns a vAcc's TopSky DATA files into package datasets. The spec
+is `@client` `docs/roadmap/safety-nets-plan.md` § 9.4, and § 9.7 there says which client code
+reads each output. Two entry points, one pipeline (`runTopSkyPipeline`): `topsky-convert
+<packagePath> [--only maps,msaw,areas,stca,radars] [--timezone <IANA>]` runs it alone and touches
+nothing else; `convert` runs it after the ESE step and BEFORE the indexer, and skips it quietly
+when `topsky/` is absent, as it does for `ASRs/`.
+
+`<packageEnvironment>/topsky/` holds verbatim copies of the vAcc's files (the UK's come from the
+`TopSky_NERC` profile). **They are never edited here**: an error in one is warned about and
+reported upstream, which is the whole rollout argument. Dispatch is by file NAME, case
+insensitive (`KNOWN_FILES` in `index.ts`):
+
+| File | Module | Writes |
+|---|---|---|
+| `TopSkyMaps.txt`, `TopSkyMapsLocal.txt` | `topsky-maps.ts` | `datasets/<folder>.geojson` per map `FOLDER`, a `/` in the name flattened to ` - ` |
+| `TopSkyMSAW.txt` | `topsky-msaw.ts` | `datasets/msaw.geojson` |
+| `TopSkyAreas.txt` | `topsky-areas.ts` | `datasets/areas.geojson` |
+| `TopSkySTCA.txt` | `topsky-stca.ts` | `datasets/stca-runways.json`, only when the file exists |
+| `TopSkyRadars.txt` | `topsky-radars.ts` | a `rawVideo` block on the matching station of `datasets/radars.json` |
+| `TopSkyAirspace.txt`, `TopSkySettings.txt`, `TopSkySettingsLocal.txt` | none | nothing; recognised and skipped |
+| `TopSkyAreasManualAct.txt` | none | REFUSES the stage and sets exit code 1 |
+| any other `.txt` | none | one warning naming it |
+
+The shared modules: `topsky-lexer.ts` reads every file (a `//` comment only at line start or after
+whitespace, so URLs survive; blocks grouped by header keyword; line numbers kept for warnings).
+`topsky-coords.ts` reads sexagesimal AND decimal degrees and projects through `@turf/projection`;
+`geoHelper.convertESEGeoCoordinatesToCartesian` reads sexagesimal only and returned null for 171
+of the UK's MSAW polygons. `topsky-active.ts` is the `ACTIVE` rule grammar, shared with the
+conditional map port when it comes. **The DST fold** turns a summer/winter pair of UTC schedules
+into one local-time rule in `--timezone` (default: this machine's zone, so build UK packages on a
+UK clock or pass `Europe/London`); it folds only a bucket of identical local times whose periods run
+contiguously 0101 to 1231, and leaves the rest as UTC.
+
+`topsky-radars.ts` MERGES rather than writes: a TopSky station matches a `radars.json` station by
+name, then by location within 500 m; an unmatched one is ADDED with no coverage sensors and a
+warning naming its coordinates. It therefore needs the ESE step's `radars.json` first, which is
+why `convert` runs it after ESE. The UK run: 17 by name, 4 by location, 1 added (`RADAR:Belfast`
+at `N059.39`, a digit out, for the vAcc to fix).
+
+Every warning goes through `logTopSkyParsingWarning` (file, line number, line) into
+`neoradar-cli.log`, and the run prints per-file counts. **Not built:** reporting a dataset whose
+source file has since left `topsky/`; it stays in `datasets/` silently. **The indexer layers every
+`datasets/*.geojson`**, so a full `convert` adds `msaw`, `areas` and each map folder to
+`manifest.mapLayers`. Tests: `test/topsky-*.test.ts`, the whole-folder one
+(`topsky-uk-folder.test.ts`) skipped when the UK package is absent.
+
+**Rollout for another vAcc:** copy its TopSky data files into `topsky/` and run `convert`. A vAcc
+without TopSky gets none of these datasets, and the client's explainers say so (no MSAW, no APW).
 
 ## server-dataset.json (spec ruling P6)
 

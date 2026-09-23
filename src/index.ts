@@ -47,20 +47,23 @@ program
   .option("--only-sct <string>", "Parse only an SCT file, and not parsing ESE or other EuroScope files", false)
   .option("--no-profiles", "Skip converting STP profiles, defaults to false")
   .option("--layer-name <string>", "Output layer file name for the converted data if using --only-sct")
+  .option("--timezone <string>", "IANA zone the TopSky area schedules fold into, defaults to this machine's")
   .action((packagePath, options) => {
     if (options.onlySct) {
       convertSingleSCT(packagePath || process.cwd(), options.layerName);
     } else {
-      convert(packagePath || process.cwd(), !options.profiles);
+      convert(packagePath || process.cwd(), !options.profiles, options.timezone);
     }
   });
 
 program
   .command("topsky-convert")
-  .description("Converts TopSky map files to the neoradar format")
+  .description("Converts the TopSky data files in topsky/ to package datasets: maps, the MSA surface, the areas, the runway STCA regions and the raw video blocks")
   .argument("<string>", "Path to the package environment or built package, defaults to current directory")
-  .action((packagePath) => {
-    convertTopsky(packagePath || process.cwd());
+  .option("--only <string>", "Comma-separated stages to run: maps, msaw, areas, stca, radars")
+  .option("--timezone <string>", "IANA zone the area schedules fold into, defaults to this machine's")
+  .action((packagePath, options) => {
+    convertTopsky(packagePath || process.cwd(), { only: options.only, timezone: options.timezone });
   });
 
 program
