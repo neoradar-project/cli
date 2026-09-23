@@ -13,8 +13,8 @@ export const MSAW_DATASET_FILE = "msaw.geojson";
 const MSAW_SCHEMA =
   "https://raw.githubusercontent.com/neoradar-project/schemas/refs/heads/main/datasets/msaw.schema.json";
 
-// Where the record came from. The client resolves an overlap HIGHEST WINS rather than by read
-// order, so this is description, not precedence; `order` keeps what TopSky would have chosen.
+// Where the record came from, for the explainer. `order` is the precedence: the client resolves
+// an overlap first in file order, exactly as TopSky reads the file.
 export type MsaSource = "smaa" | "grid" | "floor";
 
 // A dropped trailing zero is what this looks for: the UK file has a 3.2 NM circle at Gatwick

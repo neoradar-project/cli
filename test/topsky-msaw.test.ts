@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { parseMsaw } from "../src/commands/converter/topsky/topsky-msaw";
 
 // TopSkyMSAW.txt is the UK vAcc's own authoring of three layers. Every record kind here is real,
-// and the resolution rule is the client's: highest wins, never file order.
+// and the resolution rule is TopSky's own, which the client follows: first in file order.
 
 function parse(lines: string[]) {
   return parseMsaw("TopSkyMSAW.txt", lines.join("\n"));
